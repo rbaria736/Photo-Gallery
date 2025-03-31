@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Photography Gallery</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #1a1a1a;
+            --secondary-color: #f5f5f5;
+            --accent-color: #d4af37;
+            --text-color: #333;
+            --transition-speed: 0.3s;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            color: var(--text-color);
+            line-height: 1.6;
+            background-color: var(--secondary-color);
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+        }
+
+        body.loaded {
+            opacity: 1;
+        }
+
+        h1, h2, h3 {
+            font-family: 'Playfair Display', serif;
+        }
+
+        /* Header */
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 20px 0;
+            text-align: center;
+            position: relative;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .logo {
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+        }
+
+        .logo span {
+            color: var(--accent-color);
+        }
+
+        .tagline {
+            font-size: 1rem;
+            font-weight: 300;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+        }
+
+        /* Main Content */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            min-height: calc(100vh - 200px);
+        }
+
+        /* Login */
+        .login-container {
+            max-width: 500px;
+            margin: 40px auto;
+            padding: 30px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            transform: translateY(20px);
+            opacity: 0;
+            animation: fadeIn 0.5s forwards 0.3s;
+        }
+
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .login-container h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: var(--primary-color);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 1rem;
+            transition: border var(--transition-speed);
+        }
+
+        .form-group input:focus {
+            border-color: var(--accent-color);
+            outline: none;
+        }
+
+        .btn {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all var(--transition-speed);
+            display: inline-block;
+            text-align: center;
+            text-decoration: none;
+        }
+
+        .btn:hover {
+            background-color: #c19b2a;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .btn-block {
+            display: block;
+            width: 100%;
+        }
+
+        .error-message {
+            color: #e74c3c;
+            margin-top: 20px;
+            text-align: center;
+            font-weight: 600;
+            display: none;
+        }
+
+        /* Gallery */
+        .gallery-container {
+            display: none;
+        }
+
+        .gallery-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .gallery-header h2 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            color: var(--primary-color);
+        }
+
+        .gallery-header p {
+            font-size: 1.1rem;
+            color: #666;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        .slideshow-container {
+            position: relative;
+            max-width: 1000px;
+            margin: 0 auto 40px auto;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            overflow: hidden;
+            height: 600px;
+        }
+
+        .slideshow-slide {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+            object-fit: cover;
+            top: 0;
+            left: 0;
+        }
+
+        .slideshow-slide.active {
+            opacity: 1;
+        }
+
+        .slideshow-prev, .slideshow-next {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            font-size: 2rem;
+            padding: 15px;
+            cursor: pointer;
+            z-index: 10;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all var(--transition-speed);
+        }
+
+        .slideshow-prev:hover, .slideshow-next:hover {
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+
+        .slideshow-prev {
+            left: 20px;
+        }
+
+        .slideshow-next {
+            right: 20px;
+        }
+
+        .grid-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 40px;
+        }
+
+        .gallery-item {
+            position: relative;
+            overflow: hidden;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: transform var(--transition-speed);
+            height: 300px;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        .gallery-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform var(--transition-speed);
+        }
+
+        .gallery-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .gallery-item:hover img {
+            transform: scale(1.05);
+        }
+
+        .gallery-item-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);
+            padding: 20px;
+            color: white;
+            transform: translateY(100%);
+            transition: transform var(--transition-speed);
+        }
+
+        .gallery-item:hover .gallery-item-overlay {
+            transform: translateY(0);
+        }
+
+        .download-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background-color: var(--accent-color);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: all var(--transition-speed);
+        }
+
+        .gallery-item:hover .download-btn {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .download-all-btn {
+            margin: 40px auto 0;
+            display: block;
+            max-width: 250px;
+        }
+
+        /* Lightbox */
+        .lightbox {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity var(--transition-speed);
+        }
+
+        .lightbox.active {
+            opacity: 1;
+            display: flex;
+        }
+
+        .lightbox-content {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+            border: 4px solid white;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: white;
+            font-size: 2rem;
+            cursor: pointer;
+            opacity: 0.8;
+            transition: opacity var(--transition-speed);
+        }
+
+        .lightbox-close:hover {
+            opacity: 1;
+        }
+
+        /* Footer */
+        footer {
+            background-color: var(--primary-color);
+            color: white;
+            text-align: center;
+            padding: 30px 20px;
+            position: relative;
+        }
+
+        .footer-content {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .footer-logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+            letter-spacing: 2px;
+        }
+
+        .footer-logo span {
+            color: var(--accent-color);
+        }
+
+        .footer-text {
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+            color: #aaa;
+        }
+
+        .social-links {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .social-links a {
+            color: white;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.1);
+            transition: all var(--transition-speed);
+        }
+
+        .social-links a:hover {
+            background-color: var(--accent-color);
+            transform: translateY(-3px);
+        }
+
+        .copyright {
+            font-size: 0.8rem;
+            color: #777;
+            margin-top: 20px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .slideshow-container {
+                height: 400px;
+            }
+
+            .grid-gallery {
+                grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            }
+
+            .gallery-item {
+                height: 250px;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .slideshow-container {
+                height: 300px;
+            }
+
+            .grid-gallery {
+                grid-template-columns: 1fr;
+            }
+
+            .gallery-item {
+                height: auto;
+                aspect-ratio: 1;
+            }
+        }
+
+        /* Loading Animation */
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--secondary-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            transition: opacity 0.5s ease-in-out;
+        }
+
+        .loading.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(0,0,0,0.1);
+            border-radius: 50%;
+            border-top-color: var(--accent-color);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Animations */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Spinner -->
+    <div class="loading">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- Header -->
+    <header>
+        <div class="logo">LENS<span>CRAFT</span></div>
+        <div class="tagline">Capturing moments, creating memories</div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Login Section -->
+        <div class="login-container" id="loginContainer">
+            <h2>Access Your Gallery</h2>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="accessCode">Access Code</label>
+                    <input type="password" id="accessCode" placeholder="Enter your access code" required>
+                </div>
+                <button type="submit" class="btn btn-block">View My Photos</button>
+            </form>
+            <div id="errorMessage" class="error-message">Incorrect access code. Please try again.</div>
+        </div>
+
+        <!-- Gallery Section -->
+        <div class="gallery-container" id="galleryContainer">
+            <div class="gallery-header">
+                <h2>Your Photo Collection</h2>
+                <p>Thank you for choosing me to capture your special moments. Here are your beautiful photographs ready to be downloaded and cherished forever.</p>
+            </div>
+
+            <!-- Slideshow -->
+            <div class="slideshow-container">
+                <!-- Slides will be added dynamically -->
+                <button class="slideshow-prev">❮</button>
+                <button class="slideshow-next">❯</button>
+            </div>
+
+            <!-- Grid Gallery -->
+            <div class="grid-gallery" id="photoGrid">
+                <!-- Photos will be added dynamically -->
+            </div>
+
+            <a href="#" class="btn download-all-btn" id="downloadAllBtn">Download All Photos</a>
+        </div>
+    </div>
+
+    <!-- Lightbox -->
+    <div class="lightbox" id="lightbox">
+        <img src="" class="lightbox-content" id="lightboxImg">
+        <div class="lightbox-close">×</div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-content">
+            <div class="footer-logo">LENS<span>CRAFT</span></div>
+            <p class="footer-text">Professional photography services capturing your most precious moments with artistry and passion.</p>
+            <div class="social-links">
+                <a href="#" title="Instagram">📷</a>
+                <a href="#" title="Facebook">👍</a>
+                <a href="#" title="Twitter">🐦</a>
+                <a href="#" title="Pinterest">📌</a>
+            </div>
+            <p class="copyright">© 2025 LensCraft Photography. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Demo access codes and their corresponding galleries
+        const galleries = {
+            // Each access code maps to an array of photo objects
+            'WEDDING2025': {
+                name: 'John & Sarah\'s Wedding',
+                date: 'March 15, 2025',
+                photos: [
+                    { 
+                        url: 'https://drive.google.com/uc?export=view&id=REPLACE_WITH_YOUR_GDRIVE_ID', 
+                        title: 'First Kiss',
+                        description: 'A magical moment captured forever'
+                    },
+                    // Add more photos here
+                ]
+            },
+            'FAMILY2025': {
+                name: 'The Smith Family Portrait',
+                date: 'February 20, 2025',
+                photos: [
+                    { 
+                        url: 'https://drive.google.com/uc?export=view&id=REPLACE_WITH_YOUR_GDRIVE_ID', 
+                        title: 'Family Together',
+                        description: 'The whole family smiling together'
+                    },
+                    // Add more photos here
+                ]
+            }
+        };
+
+        // For demo purposes, we'll use placeholder images
+        const placeholderImages = [
+            '/api/placeholder/800/600',
+            '/api/placeholder/800/600',
+            '/api/placeholder/800/600',
+            '/api/placeholder/800/600',
+            '/api/placeholder/800/600',
+            '/api/placeholder/800/600',
+            '/api/placeholder/800/600',
+            '/api/placeholder/800/600'
+        ];
+
+        // DOM Elements
+        const loginForm = document.getElementById('loginForm');
+        const accessCodeInput = document.getElementById('accessCode');
+        const errorMessage = document.getElementById('errorMessage');
+        const loginContainer = document.getElementById('loginContainer');
+        const galleryContainer = document.getElementById('galleryContainer');
+        const photoGrid = document.getElementById('photoGrid');
+        const slideshowContainer = document.querySelector('.slideshow-container');
+        const slideshowPrev = document.querySelector('.slideshow-prev');
+        const slideshowNext = document.querySelector('.slideshow-next');
+        const lightbox = document.getElementById('lightbox');
+        const lightboxImg = document.getElementById('lightboxImg');
+        const lightboxClose = document.querySelector('.lightbox-close');
+        const downloadAllBtn = document.getElementById('downloadAllBtn');
+        const loading = document.querySelector('.loading');
+
+        // State
+        let currentSlide = 0;
+        let currentGallery = null;
+
+        // Functions
+        function showLoading() {
+            loading.classList.remove('hidden');
+        }
+
+        function hideLoading() {
+            setTimeout(() => {
+                loading.classList.add('hidden');
+                document.body.classList.add('loaded');
+            }, 500);
+        }
+
+        function verifyAccessCode(code) {
+            // Hash the entered code for better security
+            const hashedCode = CryptoJS.SHA256(code).toString();
+            
+            // For demo, we'll just check if the code exists in our galleries object
+            if (galleries[code]) {
+                return true;
+            }
+            return false;
+        }
+
+        function displayGallery(code) {
+            // Set current gallery
+            currentGallery = galleries[code];
+            
+            // In a real app, you'd fetch photos from your database or API
+            // For this demo, we'll use the placeholder images
+            const photos = placeholderImages;
+            
+            // Clear any existing content
+            photoGrid.innerHTML = '';
+            slideshowContainer.innerHTML = '';
+            
+            // Add prev/next buttons back
+            slideshowContainer.appendChild(slideshowPrev);
+            slideshowContainer.appendChild(slideshowNext);
+            
+            // Create slideshow slides
+            photos.forEach((photo, index) => {
+                const slide = document.createElement('img');
+                slide.src = photo;
+                slide.alt = `Photo ${index + 1}`;
+                slide.classList.add('slideshow-slide');
+                if (index === 0) {
+                    slide.classList.add('active');
+                }
+                slideshowContainer.appendChild(slide);
+            });
+            
+            // Create gallery items
+            photos.forEach((photo, index) => {
+                const item = document.createElement('div');
+                item.classList.add('gallery-item');
+                item.style.animation = `slideIn 0.5s forwards ${0.1 + index * 0.1}s`;
+                
+                const img = document.createElement('img');
+                img.src = photo;
+                img.alt = `Photo ${index + 1}`;
+                
+                const overlay = document.createElement('div');
+                overlay.classList.add('gallery-item-overlay');
+                overlay.innerHTML = `
+                    <h3>Photo ${index + 1}</h3>
+                    <p>Click to view full size</p>
+                `;
+                
+                const downloadBtn = document.createElement('a');
+                downloadBtn.href = photo;
+                downloadBtn.download = `photo-${index + 1}.jpg`;
+                downloadBtn.classList.add('download-btn');
+                downloadBtn.innerHTML = '↓';
+                downloadBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                });
+                
+                item.appendChild(img);
+                item.appendChild(overlay);
+                item.appendChild(downloadBtn);
+                
+                item.addEventListener('click', () => {
+                    openLightbox(photo);
+                });
+                
+                photoGrid.appendChild(item);
+            });
+        }
+
+        function showGallery() {
+            loginContainer.style.display = 'none';
+            galleryContainer.style.display = 'block';
+        }
+
+        function showError() {
+            errorMessage.style.display = 'block';
+            setTimeout(() => {
+                errorMessage.style.display = 'none';
+            }, 3000);
+        }
+
+        function nextSlide() {
+            const slides = document.querySelectorAll('.slideshow-slide');
+            slides[currentSlide].classList.remove('active');
+            currentSlide = (currentSlide + 1) % slides.length;
+            slides[currentSlide].classList.add('active');
+        }
+
+        function prevSlide() {
+            const slides = document.querySelectorAll('.slideshow-slide');
+            slides[currentSlide].classList.remove('active');
+            currentSlide = (currentSlide - 1 + slides.length) % slides.length;
+            slides[currentSlide].classList.add('active');
+        }
+
+        function openLightbox(imgSrc) {
+            lightboxImg.src = imgSrc;
+            lightbox.classList.add('active');
+        }
+
+        function closeLightbox() {
+            lightbox.classList.remove('active');
+        }
+
+        function downloadAllPhotos() {
+            alert('In a real implementation, this would zip and download all photos. For this demo, we\'ll just show this alert.');
+        }
+
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            // Simulate loading
+            hideLoading();
+            
+            // Auto slideshow
+            setInterval(nextSlide, 5000);
+        });
+
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const code = accessCodeInput.value.trim();
+            
+            if (verifyAccessCode(code)) {
+                showLoading();
+                // Simulate loading photos
+                setTimeout(() => {
+                    displayGallery(code);
+                    showGallery();
+                    hideLoading();
+                }, 1000);
+            } else {
+                showError();
+            }
+        });
+
+        slideshowPrev.addEventListener('click', prevSlide);
+        slideshowNext.addEventListener('click', nextSlide);
+        
+        lightboxClose.addEventListener('click', closeLightbox);
+        lightbox.addEventListener('click', (e) => {
+            if (e.target === lightbox) {
+                closeLightbox();
+            }
+        });
+        
+        downloadAllBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            downloadAllPhotos();
+        });
+    </script>
+</body>
+</html>
