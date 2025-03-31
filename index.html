@@ -511,7 +511,7 @@
 
     <!-- Header -->
     <header>
-        <div class="logo">RN<span>Studio</span></div>
+        <div class="logo">LENS<span>CRAFT</span></div>
         <div class="tagline">Capturing moments, creating memories</div>
     </header>
 
@@ -533,8 +533,8 @@
         <!-- Gallery Section -->
         <div class="gallery-container" id="galleryContainer">
             <div class="gallery-header">
-                <h2>Your Photo Collection</h2>
-                <p>Thank you for choosing me to capture your special moments. Here are your beautiful photographs ready to be downloaded and cherished forever.</p>
+                <h2 id="galleryTitle">Your Photo Collection</h2>
+                <p id="galleryDescription">Thank you for choosing me to capture your special moments. Here are your beautiful photographs ready to be downloaded and cherished forever.</p>
             </div>
 
             <!-- Slideshow -->
@@ -562,59 +562,38 @@
     <!-- Footer -->
     <footer>
         <div class="footer-content">
-            <div class="footer-logo">LENS<span>CRAFT</span></div>
+            <div class="footer-logo">RN<span>Studio</span></div>
             <p class="footer-text">Professional photography services capturing your most precious moments with artistry and passion.</p>
             <div class="social-links">
-                <a href="https://instagram.com/@rn.studio.x" title="Instagram">📷</a>
-                <a href="https://instagram.com/@rn.studio.x" title="Facebook">👍</a>
-                <a href="https://instagram.com/@rn.studio.x" title="Twitter">🐦</a>
-                <a href="https://instagram.com/@rn.studio.x" title="Pinterest">📌</a>
+                <a href="#" title="Instagram">📷</a>
+                <a href="#" title="Facebook">👍</a>
+                <a href="#" title="Twitter">🐦</a>
+                <a href="#" title="Pinterest">📌</a>
             </div>
             <p class="copyright">© 2025 RN Studio Photography. All rights reserved.</p>
         </div>
     </footer>
 
     <script>
-        // Demo access codes and their corresponding galleries
+        // Client access codes mapped to Google Drive folder information
         const galleries = {
-            // Each access code maps to an array of photo objects
             'WEDDING2025': {
                 name: 'John & Sarah\'s Wedding',
                 date: 'March 15, 2025',
-                photos: [
-                    { 
-                        url: 'https://drive.google.com/uc?export=view&id=REPLACE_WITH_YOUR_GDRIVE_ID', 
-                        title: 'First Kiss',
-                        description: 'A magical moment captured forever'
-                    },
-                    // Add more photos here
-                ]
+                description: 'Beautiful moments from your special day',
+                // Google Drive folder ID
+                folderId: '1moDBMuHQ3PgweeJ0uK9r_pjgyicaUb97',
+                // Optional custom folder thumbnail
+                thumbnail: null
             },
             'FAMILY2025': {
                 name: 'The Smith Family Portrait',
                 date: 'February 20, 2025',
-                photos: [
-                    { 
-                        url: 'https://drive.google.com/uc?export=view&id=REPLACE_WITH_YOUR_GDRIVE_ID', 
-                        title: 'Family Together',
-                        description: 'The whole family smiling together'
-                    },
-                    // Add more photos here
-                ]
+                description: 'Lovely family photos at sunset',
+                folderId: 'YOUR_FOLDER_ID_HERE',
+                thumbnail: null
             }
         };
-
-        // For demo purposes, we'll use placeholder images
-        const placeholderImages = [
-            '/api/placeholder/800/600',
-            '/api/placeholder/800/600',
-            '/api/placeholder/800/600',
-            '/api/placeholder/800/600',
-            '/api/placeholder/800/600',
-            '/api/placeholder/800/600',
-            '/api/placeholder/800/600',
-            '/api/placeholder/800/600'
-        ];
 
         // DOM Elements
         const loginForm = document.getElementById('loginForm');
@@ -631,10 +610,13 @@
         const lightboxClose = document.querySelector('.lightbox-close');
         const downloadAllBtn = document.getElementById('downloadAllBtn');
         const loading = document.querySelector('.loading');
+        const galleryTitle = document.getElementById('galleryTitle');
+        const galleryDescription = document.getElementById('galleryDescription');
 
         // State
         let currentSlide = 0;
         let currentGallery = null;
+        let photosList = [];
 
         // Functions
         function showLoading() {
@@ -649,80 +631,123 @@
         }
 
         function verifyAccessCode(code) {
-            // Hash the entered code for better security
-            const hashedCode = CryptoJS.SHA256(code).toString();
-            
-            // For demo, we'll just check if the code exists in our galleries object
-            if (galleries[code]) {
-                return true;
-            }
-            return false;
+            return galleries[code] !== undefined;
         }
 
-        function displayGallery(code) {
+        async function fetchGoogleDrivePhotos(folderId) {
+            // In a production environment, you would use Google Drive API to fetch folder contents
+            // This would typically be done through your backend server to keep API keys secure
+            
+            // For this demo, we'll simulate this using placeholder images
+            // but this is where you would make the actual API call in a production environment
+            
+            // Example of how you would fetch photos in a real implementation:
+            // const response = await fetch(`/api/photos?folderId=${folderId}`);
+            // const data = await response.json();
+            // return data.files;
+            
+            // Simulated response for demo
+            return new Promise((resolve) => {
+                setTimeout(() => {
+                    // Generate 8-12 random placeholder images
+                    const count = Math.floor(Math.random() * 5) + 8;
+                    const photos = [];
+                    
+                    for (let i = 0; i < count; i++) {
+                        photos.push({
+                            id: `photo-${i}`,
+                            name: `Photo ${i + 1}`,
+                            // In reality, you would construct proper Google Drive links
+                            // Example: `https://drive.google.com/uc?export=view&id=FILE_ID`
+                            url: `/api/placeholder/800/600?${i}`,
+                            thumbnail: `/api/placeholder/300/300?${i}`,
+                            description: `Photo ${i + 1} description`
+                        });
+                    }
+                    
+                    resolve(photos);
+                }, 1000);
+            });
+        }
+
+        async function displayGallery(code) {
             // Set current gallery
             currentGallery = galleries[code];
             
-            // In a real app, you'd fetch photos from your database or API
-            // For this demo, we'll use the placeholder images
-            const photos = placeholderImages;
+            // Update gallery header
+            galleryTitle.textContent = currentGallery.name;
+            galleryDescription.textContent = currentGallery.description || 
+                `These photos were taken on ${currentGallery.date}. Thank you for choosing me to capture your special moments.`;
             
-            // Clear any existing content
-            photoGrid.innerHTML = '';
-            slideshowContainer.innerHTML = '';
-            
-            // Add prev/next buttons back
-            slideshowContainer.appendChild(slideshowPrev);
-            slideshowContainer.appendChild(slideshowNext);
-            
-            // Create slideshow slides
-            photos.forEach((photo, index) => {
-                const slide = document.createElement('img');
-                slide.src = photo;
-                slide.alt = `Photo ${index + 1}`;
-                slide.classList.add('slideshow-slide');
-                if (index === 0) {
-                    slide.classList.add('active');
-                }
-                slideshowContainer.appendChild(slide);
-            });
-            
-            // Create gallery items
-            photos.forEach((photo, index) => {
-                const item = document.createElement('div');
-                item.classList.add('gallery-item');
-                item.style.animation = `slideIn 0.5s forwards ${0.1 + index * 0.1}s`;
+            // Fetch photos from Google Drive folder
+            try {
+                photosList = await fetchGoogleDrivePhotos(currentGallery.folderId);
                 
-                const img = document.createElement('img');
-                img.src = photo;
-                img.alt = `Photo ${index + 1}`;
+                // Clear any existing content
+                photoGrid.innerHTML = '';
                 
-                const overlay = document.createElement('div');
-                overlay.classList.add('gallery-item-overlay');
-                overlay.innerHTML = `
-                    <h3>Photo ${index + 1}</h3>
-                    <p>Click to view full size</p>
-                `;
+                // Remove previous slides, keeping only the navigation buttons
+                const slides = document.querySelectorAll('.slideshow-slide');
+                slides.forEach(slide => slide.remove());
                 
-                const downloadBtn = document.createElement('a');
-                downloadBtn.href = photo;
-                downloadBtn.download = `photo-${index + 1}.jpg`;
-                downloadBtn.classList.add('download-btn');
-                downloadBtn.innerHTML = '↓';
-                downloadBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
+                // Create slideshow slides
+                photosList.forEach((photo, index) => {
+                    const slide = document.createElement('img');
+                    slide.src = photo.url;
+                    slide.alt = photo.name;
+                    slide.classList.add('slideshow-slide');
+                    if (index === 0) {
+                        slide.classList.add('active');
+                    }
+                    slideshowContainer.appendChild(slide);
                 });
                 
-                item.appendChild(img);
-                item.appendChild(overlay);
-                item.appendChild(downloadBtn);
-                
-                item.addEventListener('click', () => {
-                    openLightbox(photo);
+                // Create gallery items
+                photosList.forEach((photo, index) => {
+                    const item = document.createElement('div');
+                    item.classList.add('gallery-item');
+                    item.style.animation = `slideIn 0.5s forwards ${0.1 + index * 0.1}s`;
+                    
+                    const img = document.createElement('img');
+                    img.src = photo.thumbnail || photo.url;
+                    img.alt = photo.name;
+                    
+                    const overlay = document.createElement('div');
+                    overlay.classList.add('gallery-item-overlay');
+                    overlay.innerHTML = `
+                        <h3>${photo.name}</h3>
+                        <p>${photo.description || 'Click to view full size'}</p>
+                    `;
+                    
+                    const downloadBtn = document.createElement('a');
+                    downloadBtn.href = photo.url;
+                    downloadBtn.download = photo.name;
+                    downloadBtn.classList.add('download-btn');
+                    downloadBtn.innerHTML = '↓';
+                    downloadBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                    });
+                    
+                    item.appendChild(img);
+                    item.appendChild(overlay);
+                    item.appendChild(downloadBtn);
+                    
+                    item.addEventListener('click', () => {
+                        openLightbox(photo.url);
+                    });
+                    
+                    photoGrid.appendChild(item);
                 });
                 
-                photoGrid.appendChild(item);
-            });
+                // Update the download all button
+                downloadAllBtn.setAttribute('href', `https://drive.google.com/drive/folders/${currentGallery.folderId}`);
+                downloadAllBtn.setAttribute('target', '_blank');
+                
+                return true;
+            } catch (error) {
+                console.error('Error fetching photos:', error);
+                return false;
+            }
         }
 
         function showGallery() {
@@ -739,6 +764,8 @@
 
         function nextSlide() {
             const slides = document.querySelectorAll('.slideshow-slide');
+            if (slides.length === 0) return;
+            
             slides[currentSlide].classList.remove('active');
             currentSlide = (currentSlide + 1) % slides.length;
             slides[currentSlide].classList.add('active');
@@ -746,6 +773,8 @@
 
         function prevSlide() {
             const slides = document.querySelectorAll('.slideshow-slide');
+            if (slides.length === 0) return;
+            
             slides[currentSlide].classList.remove('active');
             currentSlide = (currentSlide - 1 + slides.length) % slides.length;
             slides[currentSlide].classList.add('active');
@@ -760,10 +789,6 @@
             lightbox.classList.remove('active');
         }
 
-        function downloadAllPhotos() {
-            alert('In a real implementation, this would zip and download all photos. For this demo, we\'ll just show this alert.');
-        }
-
         // Event Listeners
         document.addEventListener('DOMContentLoaded', () => {
             // Simulate loading
@@ -773,18 +798,22 @@
             setInterval(nextSlide, 5000);
         });
 
-        loginForm.addEventListener('submit', (e) => {
+        loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const code = accessCodeInput.value.trim();
             
             if (verifyAccessCode(code)) {
                 showLoading();
-                // Simulate loading photos
-                setTimeout(() => {
-                    displayGallery(code);
+                // Load and display gallery
+                const success = await displayGallery(code);
+                
+                if (success) {
                     showGallery();
-                    hideLoading();
-                }, 1000);
+                } else {
+                    showError();
+                }
+                
+                hideLoading();
             } else {
                 showError();
             }
@@ -798,11 +827,6 @@
             if (e.target === lightbox) {
                 closeLightbox();
             }
-        });
-        
-        downloadAllBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            downloadAllPhotos();
         });
     </script>
 </body>
