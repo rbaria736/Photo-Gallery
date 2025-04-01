@@ -673,8 +673,8 @@
             return mediaFiles.map(file => ({
                 id: file.id,
                 name: file.name,
-                // Direct view URL for full sized image
-                url: `https://drive.google.com/uc?export=view&id=${file.id}`,
+                // Use direct link format for Google Drive images
+                url: `https://drive.google.com/uc?id=${file.id}`,
                 // High quality thumbnail with larger size parameter
                 thumbnail: `https://drive.google.com/thumbnail?id=${file.id}&sz=w500-h500`,
                 description: file.description || file.name,
@@ -706,6 +706,26 @@
         }, 100);
     }
 
+    // Function to check if image URL is valid
+    function checkImageExists(url) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve(true);
+            img.onerror = () => resolve(false);
+            img.src = url;
+        });
+    }
+
+    // Function to get fallback URL if needed
+    function getFallbackImageUrl(fileId) {
+        // Different URL formats to try
+        return [
+            `https://drive.google.com/uc?id=${fileId}`,
+            `https://drive.google.com/uc?export=view&id=${fileId}`,
+            `https://lh3.googleusercontent.com/d/${fileId}`
+        ];
+    }
+
     async function displayGallery(code) {
         // Set current gallery
         currentGallery = galleries[code];
@@ -727,7 +747,9 @@
             slides.forEach(slide => slide.remove());
             
             // Create slideshow slides
-            photosList.forEach((media, index) => {
+            for (let index = 0; index < photosList.length; index++) {
+                const media = photosList[index];
+                
                 if (media.isVideo) {
                     // Create video element for videos
                     const videoSlide = document.createElement('video');
@@ -741,6 +763,17 @@
                 } else {
                     // Create image element for images
                     const slide = document.createElement('img');
+                    
+                    // Try to find a working URL for this image
+                    const urlsToTry = getFallbackImageUrl(media.id);
+                    for (const urlToTry of urlsToTry) {
+                        const exists = await checkImageExists(urlToTry);
+                        if (exists) {
+                            media.url = urlToTry; // Update the URL in our list
+                            break;
+                        }
+                    }
+                    
                     slide.src = media.url;
                     slide.alt = media.name;
                     slide.classList.add('slideshow-slide');
@@ -750,7 +783,7 @@
                     }
                     slideshowContainer.appendChild(slide);
                 }
-            });
+            }
             
             // Create gallery items
             photosList.forEach((media, index) => {
@@ -874,8 +907,40 @@
     }
 
     function openLightbox(mediaUrl, isVideo = false) {
-        if (isVideo) {
-            // Create a video element for the lightbox
+        // Pre-load the image to make sure it works before showing the lightbox
+        if (!isVideo) {
+            const tempImg = new Image();
+            tempImg.onload = function() {
+                // If image loads successfully, show it in lightbox
+                lightboxImg.src = mediaUrl;
+                lightboxImg.style.display = 'block';
+                
+                // Remove any video elements if they exist
+                const videoElement = lightbox.querySelector('video');
+                if (videoElement) {
+                    lightbox.removeChild(videoElement);
+                }
+                
+                lightbox.classList.add('active');
+            };
+            
+            tempImg.onerror = function() {
+                // If image fails to load, try fallback URLs
+                const fileId = mediaUrl.split('id=')[1];
+                if (fileId) {
+                    // Try alternative URL formats
+                    const fallbacks = getFallbackImageUrl(fileId);
+                    tryFallbackUrls(fallbacks, 0);
+                } else {
+                    console.error('Failed to load image and could not determine file ID');
+                    alert('Sorry, this image could not be loaded. Please try downloading it instead.');
+                }
+            };
+            
+            // Start loading the image
+            tempImg.src = mediaUrl;
+        } else {
+            // Handle video
             const videoElement = document.createElement('video');
             videoElement.src = mediaUrl;
             videoElement.controls = true;
@@ -889,9 +954,21 @@
             }
             lightbox.insertBefore(videoElement, lightboxClose);
             lightboxImg.style.display = 'none';
-        } else {
-            // Use the existing image element for images
-            lightboxImg.src = mediaUrl;
+            lightbox.classList.add('active');
+        }
+    }
+    
+    // Helper function to try fallback URLs
+    function tryFallbackUrls(urls, index) {
+        if (index >= urls.length) {
+            alert('Sorry, this image could not be loaded. Please try downloading it instead.');
+            return;
+        }
+        
+        const tempImg = new Image();
+        tempImg.onload = function() {
+            // If image loads successfully, show it in lightbox
+            lightboxImg.src = urls[index];
             lightboxImg.style.display = 'block';
             
             // Remove any video elements if they exist
@@ -899,9 +976,17 @@
             if (videoElement) {
                 lightbox.removeChild(videoElement);
             }
-        }
+            
+            lightbox.classList.add('active');
+        };
         
-        lightbox.classList.add('active');
+        tempImg.onerror = function() {
+            // Try next fallback URL
+            tryFallbackUrls(urls, index + 1);
+        };
+        
+        // Start loading the image
+        tempImg.src = urls[index];
     }
 
     function closeLightbox() {
