@@ -511,7 +511,7 @@
 
     <!-- Header -->
     <header>
-        <div class="logo">LENS<span>CRAFT</span></div>
+        <div class="logo">RN<span>Studio</span></div>
         <div class="tagline">Capturing moments, creating memories</div>
     </header>
 
@@ -565,7 +565,7 @@
             <div class="footer-logo">RN<span>Studio</span></div>
             <p class="footer-text">Professional photography services capturing your most precious moments with artistry and passion.</p>
             <div class="social-links">
-                <a href="#" title="Instagram">📷</a>
+                <a href="https://instagram.com/@rn.studio.x" title="Instagram">📷</a>
                 <a href="#" title="Facebook">👍</a>
                 <a href="#" title="Twitter">🐦</a>
                 <a href="#" title="Pinterest">📌</a>
@@ -578,8 +578,8 @@
         // Client access codes mapped to Google Drive folder information
         const galleries = {
             'WEDDING2025': {
-                name: 'John & Sarah\'s Wedding',
-                date: 'March 15, 2025',
+                name: 'Aariyan & Ankita\'s Wedding',
+                date: 'March 22, 2025',
                 description: 'Beautiful moments from your special day',
                 // Google Drive folder ID
                 folderId: '1moDBMuHQ3PgweeJ0uK9r_pjgyicaUb97',
@@ -635,40 +635,37 @@
         }
 
         async function fetchGoogleDrivePhotos(folderId) {
-            // In a production environment, you would use Google Drive API to fetch folder contents
-            // This would typically be done through your backend server to keep API keys secure
-            
-            // For this demo, we'll simulate this using placeholder images
-            // but this is where you would make the actual API call in a production environment
-            
-            // Example of how you would fetch photos in a real implementation:
-            // const response = await fetch(`/api/photos?folderId=${folderId}`);
-            // const data = await response.json();
-            // return data.files;
-            
-            // Simulated response for demo
-            return new Promise((resolve) => {
-                setTimeout(() => {
-                    // Generate 8-12 random placeholder images
-                    const count = Math.floor(Math.random() * 5) + 8;
-                    const photos = [];
-                    
-                    for (let i = 0; i < count; i++) {
-                        photos.push({
-                            id: `photo-${i}`,
-                            name: `Photo ${i + 1}`,
-                            // In reality, you would construct proper Google Drive links
-                            // Example: `https://drive.google.com/uc?export=view&id=FILE_ID`
-                            url: `/api/placeholder/800/600?${i}`,
-                            thumbnail: `/api/placeholder/300/300?${i}`,
-                            description: `Photo ${i + 1} description`
-                        });
-                    }
-                    
-                    resolve(photos);
-                }, 1000);
-            });
+    // This function fetches all images and videos from a public Google Drive folder
+    try {
+        // Use Google Drive API to list files in the folder
+        const response = await fetch(`https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents&key=YOUR_API_KEY_HERE`);
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch folder contents');
         }
+        
+        const data = await response.json();
+        
+        // Filter for images and videos only
+        const mediaTypes = ['image/jpeg', 'image/png', 'image/gif', 'video/mp4', 'video/webm'];
+        const mediaFiles = data.files.filter(file => 
+            mediaTypes.some(type => file.mimeType.includes(type))
+        );
+        
+        // Format the response
+        return mediaFiles.map(file => ({
+            id: file.id,
+            name: file.name,
+            url: `https://drive.google.com/uc?export=view&id=${file.id}`,
+            thumbnail: `https://drive.google.com/thumbnail?id=${file.id}`,
+            description: file.description || file.name,
+            isVideo: file.mimeType.includes('video')
+        }));
+    } catch (error) {
+        console.error('Error fetching files from Google Drive:', error);
+        throw error;
+    }
+}
 
         async function displayGallery(code) {
             // Set current gallery
@@ -691,53 +688,93 @@
                 slides.forEach(slide => slide.remove());
                 
                 // Create slideshow slides
-                photosList.forEach((photo, index) => {
-                    const slide = document.createElement('img');
-                    slide.src = photo.url;
-                    slide.alt = photo.name;
-                    slide.classList.add('slideshow-slide');
-                    if (index === 0) {
-                        slide.classList.add('active');
-                    }
-                    slideshowContainer.appendChild(slide);
-                });
-                
-                // Create gallery items
-                photosList.forEach((photo, index) => {
-                    const item = document.createElement('div');
-                    item.classList.add('gallery-item');
-                    item.style.animation = `slideIn 0.5s forwards ${0.1 + index * 0.1}s`;
-                    
-                    const img = document.createElement('img');
-                    img.src = photo.thumbnail || photo.url;
-                    img.alt = photo.name;
-                    
-                    const overlay = document.createElement('div');
-                    overlay.classList.add('gallery-item-overlay');
-                    overlay.innerHTML = `
-                        <h3>${photo.name}</h3>
-                        <p>${photo.description || 'Click to view full size'}</p>
-                    `;
-                    
-                    const downloadBtn = document.createElement('a');
-                    downloadBtn.href = photo.url;
-                    downloadBtn.download = photo.name;
-                    downloadBtn.classList.add('download-btn');
-                    downloadBtn.innerHTML = '↓';
-                    downloadBtn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                    });
-                    
-                    item.appendChild(img);
-                    item.appendChild(overlay);
-                    item.appendChild(downloadBtn);
-                    
-                    item.addEventListener('click', () => {
-                        openLightbox(photo.url);
-                    });
-                    
-                    photoGrid.appendChild(item);
-                });
+                // Create slideshow slides
+                // 
+                photosList.forEach((media, index) => {
+    if (media.isVideo) {
+        // Create video element for videos
+        const videoSlide = document.createElement('video');
+        videoSlide.src = media.url;
+        videoSlide.controls = true;
+        videoSlide.classList.add('slideshow-slide');
+        if (index === 0) {
+            videoSlide.classList.add('active');
+        }
+        slideshowContainer.appendChild(videoSlide);
+    } else {
+        // Create image element for images
+        const slide = document.createElement('img');
+        slide.src = media.url;
+        slide.alt = media.name;
+        slide.classList.add('slideshow-slide');
+        if (index === 0) {
+            slide.classList.add('active');
+        }
+        slideshowContainer.appendChild(slide);
+    }
+});
+
+// Create gallery items
+photosList.forEach((media, index) => {
+    const item = document.createElement('div');
+    item.classList.add('gallery-item');
+    item.style.animation = `slideIn 0.5s forwards ${0.1 + index * 0.1}s`;
+    
+    if (media.isVideo) {
+        // Use thumbnail for videos
+        const img = document.createElement('img');
+        img.src = media.thumbnail;
+        img.alt = media.name;
+        item.appendChild(img);
+        
+        // Add video indicator
+        const videoIndicator = document.createElement('div');
+        videoIndicator.innerHTML = '▶️';
+        videoIndicator.style.position = 'absolute';
+        videoIndicator.style.top = '50%';
+        videoIndicator.style.left = '50%';
+        videoIndicator.style.transform = 'translate(-50%, -50%)';
+        videoIndicator.style.fontSize = '2rem';
+        videoIndicator.style.color = 'white';
+        item.appendChild(videoIndicator);
+    } else {
+        // Use image for images
+        const img = document.createElement('img');
+        img.src = media.thumbnail || media.url;
+        img.alt = media.name;
+        item.appendChild(img);
+    }
+    
+    const overlay = document.createElement('div');
+    overlay.classList.add('gallery-item-overlay');
+    overlay.innerHTML = `
+        <h3>${media.name}</h3>
+        <p>${media.description || 'Click to view full size'}</p>
+    `;
+    
+    const downloadBtn = document.createElement('a');
+    downloadBtn.href = media.url;
+    downloadBtn.download = media.name;
+    downloadBtn.classList.add('download-btn');
+    downloadBtn.innerHTML = '↓';
+    downloadBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+    
+    item.appendChild(overlay);
+    item.appendChild(downloadBtn);
+    
+    item.addEventListener('click', () => {
+        if (media.isVideo) {
+            // Open video in new tab for better playback
+            window.open(media.url, '_blank');
+        } else {
+            openLightbox(media.url);
+        }
+    });
+    
+    photoGrid.appendChild(item);
+});
                 
                 // Update the download all button
                 downloadAllBtn.setAttribute('href', `https://drive.google.com/drive/folders/${currentGallery.folderId}`);
@@ -780,15 +817,39 @@
             slides[currentSlide].classList.add('active');
         }
 
-        function openLightbox(imgSrc) {
-            lightboxImg.src = imgSrc;
-            lightbox.classList.add('active');
+        function openLightbox(mediaUrl, isVideo = false) {
+    if (isVideo) {
+        // Create a video element for the lightbox
+        const videoElement = document.createElement('video');
+        videoElement.src = mediaUrl;
+        videoElement.controls = true;
+        videoElement.autoplay = true;
+        videoElement.classList.add('lightbox-content');
+        
+        // Remove existing content and add the video
+        const existingContent = lightbox.querySelector('.lightbox-content');
+        if (existingContent) {
+            lightbox.removeChild(existingContent);
         }
+        lightbox.insertBefore(videoElement, lightboxClose);
+    } else {
+        // Use the existing image element for images
+        lightboxImg.src = mediaUrl;
+        lightboxImg.style.display = 'block';
+    }
+    
+    lightbox.classList.add('active');
+}
 
-        function closeLightbox() {
-            lightbox.classList.remove('active');
-        }
-
+function closeLightbox() {
+    lightbox.classList.remove('active');
+    
+    // Stop video playback if there's a video
+    const videoElement = lightbox.querySelector('video');
+    if (videoElement) {
+        videoElement.pause();
+    }
+}
         // Event Listeners
         document.addEventListener('DOMContentLoaded', () => {
             // Simulate loading
