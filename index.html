@@ -28,12 +28,6 @@
             color: var(--text-color);
             line-height: 1.6;
             background-color: var(--secondary-color);
-            opacity: 0;
-            transition: opacity 1s ease-in-out;
-        }
-
-        body.loaded {
-            opacity: 1;
         }
 
         h1, h2, h3 {
@@ -84,9 +78,7 @@
             background-color: white;
             border-radius: 8px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-            transform: translateY(20px);
-            opacity: 0;
-            animation: fadeIn 0.5s forwards 0.3s;
+            animation: fadeIn 0.5s forwards;
         }
 
         @keyframes fadeIn {
@@ -199,7 +191,7 @@
             height: 100%;
             position: absolute;
             opacity: 0;
-            transition: opacity 1s ease-in-out;
+            transition: opacity 0.5s ease-in-out;
             object-fit: cover;
             top: 0;
             left: 0;
@@ -256,8 +248,9 @@
             cursor: pointer;
             transition: transform var(--transition-speed);
             height: 300px;
+            animation: slideIn 0.5s forwards;
+            animation-delay: calc(var(--item-index) * 0.05s);
             opacity: 0;
-            transform: translateY(20px);
         }
 
         .gallery-item img {
@@ -380,6 +373,35 @@
 
         .lightbox-close:hover {
             opacity: 1;
+        }
+
+        .lightbox-nav {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .lightbox-prev, .lightbox-next {
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.5rem;
+            transition: background-color 0.3s;
+        }
+
+        .lightbox-prev:hover, .lightbox-next:hover {
+            background-color: rgba(255, 255, 255, 0.4);
         }
 
         /* Footer */
@@ -507,6 +529,34 @@
             to { transform: rotate(360deg); }
         }
 
+        /* Progress Bar */
+        .progress-container {
+            width: 80%;
+            max-width: 400px;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .progress-bar {
+            height: 10px;
+            background-color: rgba(0,0,0,0.1);
+            border-radius: 5px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: var(--accent-color);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            color: var(--primary-color);
+            font-size: 0.9rem;
+        }
+
         /* Animations */
         @keyframes slideIn {
             from {
@@ -524,6 +574,12 @@
     <!-- Loading Spinner -->
     <div class="loading">
         <div class="spinner"></div>
+        <div class="progress-container">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-text" id="progressText">Loading your gallery...</div>
+        </div>
     </div>
 
     <!-- Header -->
@@ -574,6 +630,10 @@
     <div class="lightbox" id="lightbox">
         <img src="" class="lightbox-content" id="lightboxImg">
         <div class="lightbox-close">×</div>
+        <div class="lightbox-nav">
+            <button class="lightbox-prev">❮</button>
+            <button class="lightbox-next">❯</button>
+        </div>
     </div>
 
     <!-- Footer -->
@@ -590,7 +650,6 @@
             <p class="copyright">© 2025 RN Studio Photography. All rights reserved.</p>
         </div>
     </footer>
-
    <script>
     // Client access codes mapped to Google Drive folder information
     const galleries = {
