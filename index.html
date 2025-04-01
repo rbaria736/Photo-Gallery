@@ -638,7 +638,7 @@
     // This function fetches all images and videos from a public Google Drive folder
     try {
         // Use Google Drive API to list files in the folder
-        const response = await fetch(`https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents&key=YOUR_API_KEY_HERE`);
+        const response = await fetch(`https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents&key=AIzaSyB5K5cNbyy3IpIvNsX84xEwKvJ1_3Suv_0`);
         
         if (!response.ok) {
             throw new Error('Failed to fetch folder contents');
