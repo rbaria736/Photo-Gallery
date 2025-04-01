@@ -651,7 +651,7 @@
         </div>
     </footer>
    <script>
-   // Client access codes mapped to Google Drive folder information
+// Client access codes mapped to Google Drive folder information
 const galleries = {
     'aariyan2025': {
         name: 'Aariyan & Arpita\'s Wedding',
@@ -766,7 +766,7 @@ async function fetchGoogleDrivePhotos(folderId) {
             thumbnail: `https://drive.google.com/thumbnail?id=${file.id}&sz=w500-h500`,
             description: file.description || file.name,
             isVideo: file.mimeType.includes('video'),
-            // Direct download URL
+            // Direct download URL - fixed to correctly use uc endpoint
             downloadUrl: `https://drive.google.com/uc?export=download&id=${file.id}`
         }));
     } catch (error) {
@@ -775,19 +775,29 @@ async function fetchGoogleDrivePhotos(folderId) {
     }
 }
 
-// Better download function using Blob
+// Fixed download function using Fetch API and Blob
 function downloadFile(url, filename) {
     // Show loading indicator
+    showLoading();
     updateLoadingProgress(0, 'Starting download...');
     
-    fetch(url)
+    // Use a proxy or CORS-friendly method to download
+    // For Google Drive, we need to use the direct download URL format
+    const fileId = url.split('id=')[1];
+    const downloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+    
+    fetch(downloadUrl)
         .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
             updateLoadingProgress(50, 'Downloading file...');
             return response.blob();
         })
         .then(blob => {
             updateLoadingProgress(90, 'Preparing file...');
             
+            // Create a temporary anchor element to trigger the download
             const blobUrl = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = blobUrl;
@@ -808,8 +818,14 @@ function downloadFile(url, filename) {
         })
         .catch(error => {
             console.error('Download failed:', error);
-            alert('Download failed. Please try again.');
-            hideLoading();
+            
+            // Fallback method - open in new tab
+            const directUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+            window.open(directUrl, '_blank');
+            
+            // Hide loading
+            updateLoadingProgress(100, 'Opening download in new tab...');
+            setTimeout(hideLoading, 1000);
         });
 }
 
@@ -838,6 +854,68 @@ function preloadImage(url) {
         };
         img.src = url;
     });
+}
+
+// Improved video handling
+function createVideoElement(src, isSlideshow = false) {
+    const video = document.createElement('video');
+    video.src = src;
+    video.controls = true;
+    video.preload = 'metadata';
+    
+    if (isSlideshow) {
+        video.classList.add('slideshow-slide');
+        // Add poster image if available
+        const fileId = src.split('/d/')[1];
+        if (fileId) {
+            video.poster = `https://drive.google.com/thumbnail?id=${fileId}&sz=w800-h800`;
+        }
+    }
+    
+    // Add playback optimization
+    video.addEventListener('canplay', () => {
+        // Add play button overlay
+        if (!video.parentNode.querySelector('.video-play-button')) {
+            const playButton = document.createElement('div');
+            playButton.classList.add('video-play-button');
+            playButton.innerHTML = '▶️';
+            playButton.style.position = 'absolute';
+            playButton.style.top = '50%';
+            playButton.style.left = '50%';
+            playButton.style.transform = 'translate(-50%, -50%)';
+            playButton.style.fontSize = '3rem';
+            playButton.style.cursor = 'pointer';
+            playButton.style.zIndex = '5';
+            
+            playButton.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (video.paused) {
+                    video.play();
+                    playButton.style.display = 'none';
+                }
+            });
+            
+            video.parentNode.appendChild(playButton);
+        }
+    });
+    
+    // Show play button when video is paused
+    video.addEventListener('pause', () => {
+        const playButton = video.parentNode.querySelector('.video-play-button');
+        if (playButton) {
+            playButton.style.display = 'block';
+        }
+    });
+    
+    // Hide play button when video is playing
+    video.addEventListener('play', () => {
+        const playButton = video.parentNode.querySelector('.video-play-button');
+        if (playButton) {
+            playButton.style.display = 'none';
+        }
+    });
+    
+    return video;
 }
 
 async function displayGallery(code) {
@@ -875,15 +953,20 @@ async function displayGallery(code) {
         
         initialSlides.forEach((media, index) => {
             if (media.isVideo) {
-                // Create video element for videos
-                const videoSlide = document.createElement('video');
-                videoSlide.src = media.url;
-                videoSlide.controls = true;
-                videoSlide.classList.add('slideshow-slide');
+                // Create video container
+                const videoContainer = document.createElement('div');
+                videoContainer.classList.add('slideshow-slide');
+                videoContainer.style.position = 'relative';
+                
                 if (index === 0) {
-                    videoSlide.classList.add('active');
+                    videoContainer.classList.add('active');
                 }
-                slideshowContainer.appendChild(videoSlide);
+                
+                // Create improved video element
+                const videoElement = createVideoElement(media.url, true);
+                videoContainer.appendChild(videoElement);
+                
+                slideshowContainer.appendChild(videoContainer);
             } else {
                 // Create image element for images
                 const slide = document.createElement('img');
@@ -958,15 +1041,13 @@ async function displayGallery(code) {
                 downloadBtn.setAttribute('data-id', media.id);
                 downloadBtn.setAttribute('data-name', media.name);
                 
-                // Force download using a click handler
+                // Force download using a click handler - FIXED
                 downloadBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     e.preventDefault();
                     
-                    showLoading();
-                    
-                    // Use the helper function for direct download
-                    downloadFile(media.downloadUrl, media.name);
+                    // Use the helper function for direct download with the file ID
+                    downloadFile(media.downloadUrl, `${media.name}.${media.isVideo ? 'mp4' : 'jpg'}`);
                 });
                 
                 item.appendChild(overlay);
@@ -1006,12 +1087,18 @@ async function displayGallery(code) {
                 const remainingSlides = photosList.slice(5);
                 remainingSlides.forEach((media, index) => {
                     if (media.isVideo) {
-                        const videoSlide = document.createElement('video');
-                        videoSlide.src = media.url;
-                        videoSlide.controls = true;
-                        videoSlide.classList.add('slideshow-slide');
-                        slideshowContainer.appendChild(videoSlide);
+                        // Create video container
+                        const videoContainer = document.createElement('div');
+                        videoContainer.classList.add('slideshow-slide');
+                        videoContainer.style.position = 'relative';
+                        
+                        // Create improved video element
+                        const videoElement = createVideoElement(media.url, true);
+                        videoContainer.appendChild(videoElement);
+                        
+                        slideshowContainer.appendChild(videoContainer);
                     } else {
+                        // Create image element for images
                         const slide = document.createElement('img');
                         slide.src = media.thumbnail;
                         slide.dataset.fullSrc = media.url;
@@ -1125,7 +1212,7 @@ function openLightbox(mediaUrl, isVideo = false) {
     // Show loading indicator
     lightbox.classList.add('active');
     showLoading();
-    updateLoadingProgress(10, 'Loading full-size image...');
+    updateLoadingProgress(10, isVideo ? 'Loading video...' : 'Loading full-size image...');
     
     if (!isVideo) {
         // Create a new image element each time to avoid caching issues
@@ -1155,7 +1242,8 @@ function openLightbox(mediaUrl, isVideo = false) {
         
         newImg.onerror = function() {
             // Try fallback URL
-            newImg.src = `https://drive.google.com/uc?id=${mediaUrl.split('/').pop()}`;
+            const fileId = mediaUrl.includes('/d/') ? mediaUrl.split('/d/')[1] : mediaUrl.split('id=')[1];
+            newImg.src = `https://drive.google.com/uc?id=${fileId}`;
             newImg.onerror = function() {
                 hideLoading();
                 alert('Sorry, this image could not be loaded.');
@@ -1165,11 +1253,20 @@ function openLightbox(mediaUrl, isVideo = false) {
         // Start loading the image
         newImg.src = mediaUrl;
     } else {
-        // Handle video
+        // Handle video - improved video handling
+        const videoContainer = document.createElement('div');
+        videoContainer.classList.add('lightbox-content');
+        videoContainer.style.position = 'relative';
+        videoContainer.style.maxWidth = '90%';
+        videoContainer.style.maxHeight = '90%';
+        
         const videoElement = document.createElement('video');
-        videoElement.classList.add('lightbox-content');
         videoElement.controls = true;
         videoElement.autoplay = true;
+        videoElement.style.width = '100%';
+        videoElement.style.height = '100%';
+        videoElement.style.maxWidth = '100%';
+        videoElement.style.maxHeight = '90vh';
         
         // Remove existing content
         const existingImg = document.getElementById('lightboxImg');
@@ -1177,8 +1274,8 @@ function openLightbox(mediaUrl, isVideo = false) {
             existingImg.parentNode.removeChild(existingImg);
         }
         
-        const existingVideo = lightbox.querySelector('video.lightbox-content');
-        if (existingVideo) {
+        const existingVideo = lightbox.querySelector('.lightbox-content');
+        if (existingVideo && existingVideo.tagName !== 'IMG') {
             lightbox.removeChild(existingVideo);
         }
         
@@ -1187,16 +1284,71 @@ function openLightbox(mediaUrl, isVideo = false) {
             hideLoading();
         };
         
-        videoElement.onerror = function() {
+        videoElement.onloadedmetadata = function() {
             hideLoading();
-            alert('Sorry, this video could not be loaded. Try opening it in a new tab.');
         };
         
-        // Insert video before the close button
-        lightbox.insertBefore(videoElement, lightboxClose);
+        videoElement.onerror = function() {
+            // Try alternate URL format
+            const fileId = mediaUrl.includes('/d/') ? mediaUrl.split('/d/')[1] : mediaUrl.split('id=')[1];
+            videoElement.src = `https://drive.google.com/uc?id=${fileId}`;
+            
+            videoElement.onerror = function() {
+                hideLoading();
+                
+                // Create fallback message
+                const errorMsg = document.createElement('div');
+                errorMsg.classList.add('lightbox-content');
+                errorMsg.style.color = 'white';
+                errorMsg.style.padding = '20px';
+                errorMsg.style.backgroundColor = 'rgba(0,0,0,0.7)';
+                errorMsg.innerHTML = `
+                    <p>Video could not be played directly.</p>
+                    <a href="https://drive.google.com/file/d/${fileId}/view" target="_blank" 
+                       style="color:white; text-decoration:underline; display:block; margin-top:10px; padding:10px; background:rgba(255,255,255,0.2);">
+                       Open video in Google Drive
+                    </a>
+                `;
+                
+                lightbox.insertBefore(errorMsg, lightboxClose);
+            };
+        };
+        
+        // Add play button overlay
+        const playButton = document.createElement('div');
+        playButton.innerHTML = '▶️';
+        playButton.style.position = 'absolute';
+        playButton.style.top = '50%';
+        playButton.style.left = '50%';
+        playButton.style.transform = 'translate(-50%, -50%)';
+        playButton.style.fontSize = '5rem';
+        playButton.style.cursor = 'pointer';
+        playButton.style.zIndex = '5';
+        playButton.style.opacity = '0.8';
+        
+        playButton.addEventListener('click', () => {
+            videoElement.play();
+            playButton.style.display = 'none';
+        });
+        
+        // Add video to container
+        videoContainer.appendChild(videoElement);
+        videoContainer.appendChild(playButton);
+        
+        // Insert before the close button
+        lightbox.insertBefore(videoContainer, lightboxClose);
         
         // Set source after adding to DOM
         videoElement.src = mediaUrl;
+        
+        // Handle paused state
+        videoElement.addEventListener('pause', () => {
+            playButton.style.display = 'block';
+        });
+        
+        videoElement.addEventListener('play', () => {
+            playButton.style.display = 'none';
+        });
     }
 }
 
@@ -1258,8 +1410,9 @@ document.addEventListener('DOMContentLoaded', () => {
     setInterval(() => {
         if (!lightbox.classList.contains('active')) { // Don't advance slides when lightbox is open
             const currentSlideElement = document.querySelector('.slideshow-slide.active');
-            if (currentSlideElement && currentSlideElement.tagName === 'VIDEO') {
-                if (currentSlideElement.paused) {
+            if (currentSlideElement && currentSlideElement.querySelector('video')) {
+                const video = currentSlideElement.querySelector('video');
+                if (video.paused) {
                     nextSlide();
                 }
             } else {
@@ -1353,10 +1506,6 @@ function handleGesture() {
 
 document.addEventListener('touchstart', e => {
     touchStartX = e.changedTouches[0].screenX;
-});
-
-document.addEventListener('touchend', e => {
-    touchEndX = e.changedTouches[0].screenX;
     handleGesture();
 });</script>
 </body>
