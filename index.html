@@ -321,6 +321,23 @@
             max-width: 250px;
         }
 
+        /* Video indicator */
+        .video-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2rem;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.5);
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
         /* Lightbox */
         .lightbox {
             position: fixed;
@@ -565,7 +582,7 @@
             <div class="footer-logo">RN<span>Studio</span></div>
             <p class="footer-text">Professional photography services capturing your most precious moments with artistry and passion.</p>
             <div class="social-links">
-                <a href="https://instagram.com/@rn.studio.x" title="Instagram">📷</a>
+                <a href="#" title="Instagram">📷</a>
                 <a href="#" title="Facebook">👍</a>
                 <a href="#" title="Twitter">🐦</a>
                 <a href="#" title="Pinterest">📌</a>
@@ -578,8 +595,8 @@
         // Client access codes mapped to Google Drive folder information
         const galleries = {
             'aariyan2025': {
-                name: 'Aariyan & Ankita\'s Wedding',
-                date: 'March 22, 2025',
+                name: 'John & Sarah\'s Wedding',
+                date: 'March 15, 2025',
                 description: 'Beautiful moments from your special day',
                 // Google Drive folder ID
                 folderId: '1moDBMuHQ3PgweeJ0uK9r_pjgyicaUb97',
@@ -635,37 +652,37 @@
         }
 
         async function fetchGoogleDrivePhotos(folderId) {
-    // This function fetches all images and videos from a public Google Drive folder
-    try {
-        // Use Google Drive API to list files in the folder
-        const response = await fetch(`https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents&key=AIzaSyB5K5cNbyy3IpIvNsX84xEwKvJ1_3Suv_0`);
-        
-        if (!response.ok) {
-            throw new Error('Failed to fetch folder contents');
+            // This function fetches all images and videos from a public Google Drive folder
+            try {
+                // Use Google Drive API to list files in the folder
+                const response = await fetch(`https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents&key=AIzaSyB5K5cNbyy3IpIvNsX84xEwKvJ1_3Suv_0`);
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch folder contents');
+                }
+                
+                const data = await response.json();
+                
+                // Filter for images and videos only
+                const mediaTypes = ['image/jpeg', 'image/png', 'image/gif', 'video/mp4', 'video/webm'];
+                const mediaFiles = data.files.filter(file => 
+                    mediaTypes.some(type => file.mimeType.includes(type))
+                );
+                
+                // Format the response
+                return mediaFiles.map(file => ({
+                    id: file.id,
+                    name: file.name,
+                    url: `https://drive.google.com/uc?export=view&id=${file.id}`,
+                    thumbnail: `https://drive.google.com/thumbnail?id=${file.id}`,
+                    description: file.description || file.name,
+                    isVideo: file.mimeType.includes('video')
+                }));
+            } catch (error) {
+                console.error('Error fetching files from Google Drive:', error);
+                throw error;
+            }
         }
-        
-        const data = await response.json();
-        
-        // Filter for images and videos only
-        const mediaTypes = ['image/jpeg', 'image/png', 'image/gif', 'video/mp4', 'video/webm'];
-        const mediaFiles = data.files.filter(file => 
-            mediaTypes.some(type => file.mimeType.includes(type))
-        );
-        
-        // Format the response
-        return mediaFiles.map(file => ({
-            id: file.id,
-            name: file.name,
-            url: `https://drive.google.com/uc?export=view&id=${file.id}`,
-            thumbnail: `https://drive.google.com/thumbnail?id=${file.id}`,
-            description: file.description || file.name,
-            isVideo: file.mimeType.includes('video')
-        }));
-    } catch (error) {
-        console.error('Error fetching files from Google Drive:', error);
-        throw error;
-    }
-}
 
         async function displayGallery(code) {
             // Set current gallery
@@ -688,93 +705,86 @@
                 slides.forEach(slide => slide.remove());
                 
                 // Create slideshow slides
-                // Create slideshow slides
-                // 
                 photosList.forEach((media, index) => {
-    if (media.isVideo) {
-        // Create video element for videos
-        const videoSlide = document.createElement('video');
-        videoSlide.src = media.url;
-        videoSlide.controls = true;
-        videoSlide.classList.add('slideshow-slide');
-        if (index === 0) {
-            videoSlide.classList.add('active');
-        }
-        slideshowContainer.appendChild(videoSlide);
-    } else {
-        // Create image element for images
-        const slide = document.createElement('img');
-        slide.src = media.url;
-        slide.alt = media.name;
-        slide.classList.add('slideshow-slide');
-        if (index === 0) {
-            slide.classList.add('active');
-        }
-        slideshowContainer.appendChild(slide);
-    }
-});
-
-// Create gallery items
-photosList.forEach((media, index) => {
-    const item = document.createElement('div');
-    item.classList.add('gallery-item');
-    item.style.animation = `slideIn 0.5s forwards ${0.1 + index * 0.1}s`;
-    
-    if (media.isVideo) {
-        // Use thumbnail for videos
-        const img = document.createElement('img');
-        img.src = media.thumbnail;
-        img.alt = media.name;
-        item.appendChild(img);
-        
-        // Add video indicator
-        const videoIndicator = document.createElement('div');
-        videoIndicator.innerHTML = '▶️';
-        videoIndicator.style.position = 'absolute';
-        videoIndicator.style.top = '50%';
-        videoIndicator.style.left = '50%';
-        videoIndicator.style.transform = 'translate(-50%, -50%)';
-        videoIndicator.style.fontSize = '2rem';
-        videoIndicator.style.color = 'white';
-        item.appendChild(videoIndicator);
-    } else {
-        // Use image for images
-        const img = document.createElement('img');
-        img.src = media.thumbnail || media.url;
-        img.alt = media.name;
-        item.appendChild(img);
-    }
-    
-    const overlay = document.createElement('div');
-    overlay.classList.add('gallery-item-overlay');
-    overlay.innerHTML = `
-        <h3>${media.name}</h3>
-        <p>${media.description || 'Click to view full size'}</p>
-    `;
-    
-    const downloadBtn = document.createElement('a');
-    downloadBtn.href = media.url;
-    downloadBtn.download = media.name;
-    downloadBtn.classList.add('download-btn');
-    downloadBtn.innerHTML = '↓';
-    downloadBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-    });
-    
-    item.appendChild(overlay);
-    item.appendChild(downloadBtn);
-    
-    item.addEventListener('click', () => {
-        if (media.isVideo) {
-            // Open video in new tab for better playback
-            window.open(media.url, '_blank');
-        } else {
-            openLightbox(media.url);
-        }
-    });
-    
-    photoGrid.appendChild(item);
-});
+                    if (media.isVideo) {
+                        // Create video element for videos
+                        const videoSlide = document.createElement('video');
+                        videoSlide.src = media.url;
+                        videoSlide.controls = true;
+                        videoSlide.classList.add('slideshow-slide');
+                        if (index === 0) {
+                            videoSlide.classList.add('active');
+                        }
+                        slideshowContainer.appendChild(videoSlide);
+                    } else {
+                        // Create image element for images
+                        const slide = document.createElement('img');
+                        slide.src = media.url;
+                        slide.alt = media.name;
+                        slide.classList.add('slideshow-slide');
+                        if (index === 0) {
+                            slide.classList.add('active');
+                        }
+                        slideshowContainer.appendChild(slide);
+                    }
+                });
+                
+                // Create gallery items
+                photosList.forEach((media, index) => {
+                    const item = document.createElement('div');
+                    item.classList.add('gallery-item');
+                    item.style.animation = `slideIn 0.5s forwards ${0.1 + index * 0.1}s`;
+                    
+                    if (media.isVideo) {
+                        // Use thumbnail for videos
+                        const img = document.createElement('img');
+                        img.src = media.thumbnail;
+                        img.alt = media.name;
+                        item.appendChild(img);
+                        
+                        // Add video indicator
+                        const videoIndicator = document.createElement('div');
+                        videoIndicator.innerHTML = '▶️';
+                        videoIndicator.classList.add('video-indicator');
+                        item.appendChild(videoIndicator);
+                    } else {
+                        // Use image for images
+                        const img = document.createElement('img');
+                        img.src = media.thumbnail || media.url;
+                        img.alt = media.name;
+                        item.appendChild(img);
+                    }
+                    
+                    const overlay = document.createElement('div');
+                    overlay.classList.add('gallery-item-overlay');
+                    overlay.innerHTML = `
+                        <h3>${media.name}</h3>
+                        <p>${media.description || 'Click to view full size'}</p>
+                    `;
+                    
+                    const downloadBtn = document.createElement('a');
+                    downloadBtn.href = media.url;
+                    downloadBtn.download = media.name;
+                    downloadBtn.classList.add('download-btn');
+                    downloadBtn.innerHTML = '↓';
+                    downloadBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                    });
+                    
+                    item.appendChild(overlay);
+                    item.appendChild(downloadBtn);
+                    
+                    item.addEventListener('click', () => {
+                        if (media.isVideo) {
+                            // Open video in new tab for better playback
+                            window.open(media.url, '_blank');
+                        } else {
+                            openLightbox(media.url);
+                        }
+                    });
+                    
+                    photoGrid.appendChild(item);
+                });
                 
                 // Update the download all button
                 downloadAllBtn.setAttribute('href', `https://drive.google.com/drive/folders/${currentGallery.folderId}`);
@@ -806,6 +816,11 @@ photosList.forEach((media, index) => {
             slides[currentSlide].classList.remove('active');
             currentSlide = (currentSlide + 1) % slides.length;
             slides[currentSlide].classList.add('active');
+            
+            // Pause all videos when changing slides
+            document.querySelectorAll('.slideshow-slide video').forEach(video => {
+                video.pause();
+            });
         }
 
         function prevSlide() {
@@ -815,48 +830,70 @@ photosList.forEach((media, index) => {
             slides[currentSlide].classList.remove('active');
             currentSlide = (currentSlide - 1 + slides.length) % slides.length;
             slides[currentSlide].classList.add('active');
+            
+            // Pause all videos when changing slides
+            document.querySelectorAll('.slideshow-slide video').forEach(video => {
+                video.pause();
+            });
         }
 
         function openLightbox(mediaUrl, isVideo = false) {
-    if (isVideo) {
-        // Create a video element for the lightbox
-        const videoElement = document.createElement('video');
-        videoElement.src = mediaUrl;
-        videoElement.controls = true;
-        videoElement.autoplay = true;
-        videoElement.classList.add('lightbox-content');
-        
-        // Remove existing content and add the video
-        const existingContent = lightbox.querySelector('.lightbox-content');
-        if (existingContent) {
-            lightbox.removeChild(existingContent);
+            if (isVideo) {
+                // Create a video element for the lightbox
+                const videoElement = document.createElement('video');
+                videoElement.src = mediaUrl;
+                videoElement.controls = true;
+                videoElement.autoplay = true;
+                videoElement.classList.add('lightbox-content');
+                
+                // Remove existing content and add the video
+                const existingContent = lightbox.querySelector('.lightbox-content');
+                if (existingContent) {
+                    lightbox.removeChild(existingContent);
+                }
+                lightbox.insertBefore(videoElement, lightboxClose);
+                lightboxImg.style.display = 'none';
+            } else {
+                // Use the existing image element for images
+                lightboxImg.src = mediaUrl;
+                lightboxImg.style.display = 'block';
+                
+                // Remove any video elements if they exist
+                const videoElement = lightbox.querySelector('video');
+                if (videoElement) {
+                    lightbox.removeChild(videoElement);
+                }
+            }
+            
+            lightbox.classList.add('active');
         }
-        lightbox.insertBefore(videoElement, lightboxClose);
-    } else {
-        // Use the existing image element for images
-        lightboxImg.src = mediaUrl;
-        lightboxImg.style.display = 'block';
-    }
-    
-    lightbox.classList.add('active');
-}
 
-function closeLightbox() {
-    lightbox.classList.remove('active');
-    
-    // Stop video playback if there's a video
-    const videoElement = lightbox.querySelector('video');
-    if (videoElement) {
-        videoElement.pause();
-    }
-}
+        function closeLightbox() {
+            lightbox.classList.remove('active');
+            
+            // Stop video playback if there's a video
+            const videoElement = lightbox.querySelector('video');
+            if (videoElement) {
+                videoElement.pause();
+            }
+        }
+
         // Event Listeners
         document.addEventListener('DOMContentLoaded', () => {
             // Simulate loading
             hideLoading();
             
-            // Auto slideshow
-            setInterval(nextSlide, 5000);
+            // Auto slideshow - only advance slides if not paused on a video
+            setInterval(() => {
+                const currentSlideElement = document.querySelector('.slideshow-slide.active');
+                if (currentSlideElement && currentSlideElement.tagName === 'VIDEO') {
+                    if (currentSlideElement.paused) {
+                        nextSlide();
+                    }
+                } else {
+                    nextSlide();
+                }
+            }, 5000);
         });
 
         loginForm.addEventListener('submit', async (e) => {
