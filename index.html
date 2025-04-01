@@ -651,204 +651,274 @@
         </div>
     </footer>
    <script>
-    // Client access codes mapped to Google Drive folder information
-    const galleries = {
-        'aariyan2025': {
-            name: 'Aariyan & Arpita\'s Wedding',
-            date: 'March 22, 2025',
-            description: 'Beautiful moments from your Wedding day',
-            // Google Drive folder ID
-            folderId: '1moDBMuHQ3PgweeJ0uK9r_pjgyicaUb97',
-            // Optional custom folder thumbnail
-            thumbnail: null
-        },
-        'FAMILY2025': {
-            name: 'Aariyan\'s Family',
-            date: 'March 19, 2025',
-            description: 'Lovely family photos from Notra Event',
-            folderId: '1kinqUGIxJGDDz6i8oLywqA0bJOvm3oep',
-            thumbnail: null
-        }
-    };
-
-    // DOM Elements
-    const loginForm = document.getElementById('loginForm');
-    const accessCodeInput = document.getElementById('accessCode');
-    const errorMessage = document.getElementById('errorMessage');
-    const loginContainer = document.getElementById('loginContainer');
-    const galleryContainer = document.getElementById('galleryContainer');
-    const photoGrid = document.getElementById('photoGrid');
-    const slideshowContainer = document.querySelector('.slideshow-container');
-    const slideshowPrev = document.querySelector('.slideshow-prev');
-    const slideshowNext = document.querySelector('.slideshow-next');
-    const lightbox = document.getElementById('lightbox');
-    const lightboxImg = document.getElementById('lightboxImg');
-    const lightboxClose = document.querySelector('.lightbox-close');
-    const downloadAllBtn = document.getElementById('downloadAllBtn');
-    const loading = document.querySelector('.loading');
-    const galleryTitle = document.getElementById('galleryTitle');
-    const galleryDescription = document.getElementById('galleryDescription');
-
-    // State
-    let currentSlide = 0;
-    let currentGallery = null;
-    let photosList = [];
-
-    // Functions
-    function showLoading() {
-        loading.classList.remove('hidden');
+   // Client access codes mapped to Google Drive folder information
+const galleries = {
+    'aariyan2025': {
+        name: 'Aariyan & Arpita\'s Wedding',
+        date: 'March 22, 2025',
+        description: 'Beautiful moments from your Wedding day',
+        // Google Drive folder ID
+        folderId: '1moDBMuHQ3PgweeJ0uK9r_pjgyicaUb97',
+        // Optional custom folder thumbnail
+        thumbnail: null
+    },
+    'FAMILY2025': {
+        name: 'Aariyan\'s Family',
+        date: 'March 19, 2025',
+        description: 'Lovely family photos from Notra Event',
+        folderId: '1kinqUGIxJGDDz6i8oLywqA0bJOvm3oep',
+        thumbnail: null
     }
+};
 
-    function hideLoading() {
-        setTimeout(() => {
-            loading.classList.add('hidden');
-            document.body.classList.add('loaded');
-        }, 500);
-    }
+// DOM Elements
+const loginForm = document.getElementById('loginForm');
+const accessCodeInput = document.getElementById('accessCode');
+const errorMessage = document.getElementById('errorMessage');
+const loginContainer = document.getElementById('loginContainer');
+const galleryContainer = document.getElementById('galleryContainer');
+const photoGrid = document.getElementById('photoGrid');
+const slideshowContainer = document.querySelector('.slideshow-container');
+const slideshowPrev = document.querySelector('.slideshow-prev');
+const slideshowNext = document.querySelector('.slideshow-next');
+const lightbox = document.getElementById('lightbox');
+const lightboxImg = document.getElementById('lightboxImg');
+const lightboxClose = document.querySelector('.lightbox-close');
+const lightboxPrev = document.querySelector('.lightbox-prev');
+const lightboxNext = document.querySelector('.lightbox-next');
+const downloadAllBtn = document.getElementById('downloadAllBtn');
+const loading = document.querySelector('.loading');
+const progressFill = document.getElementById('progressFill');
+const progressText = document.getElementById('progressText');
+const galleryTitle = document.getElementById('galleryTitle');
+const galleryDescription = document.getElementById('galleryDescription');
 
-    function verifyAccessCode(code) {
-        return galleries[code] !== undefined;
-    }
+// State
+let currentSlide = 0;
+let currentLightboxIndex = 0;
+let currentGallery = null;
+let photosList = [];
+let cachedImages = {};
+let loadedImagesCount = 0;
 
-    async function fetchGoogleDrivePhotos(folderId) {
-        // This function fetches all images and videos from a public Google Drive folder
-        try {
+// Functions
+function updateLoadingProgress(percent, message) {
+    progressFill.style.width = `${percent}%`;
+    progressText.textContent = message || `Loading... ${percent}%`;
+}
+
+function showLoading() {
+    loading.classList.remove('hidden');
+    updateLoadingProgress(5, 'Connecting to your gallery...');
+}
+
+function hideLoading() {
+    loading.classList.add('hidden');
+}
+
+function verifyAccessCode(code) {
+    return galleries[code] !== undefined;
+}
+
+// Improved Google Drive API fetching with caching
+async function fetchGoogleDrivePhotos(folderId) {
+    updateLoadingProgress(10, 'Fetching your photos...');
+    
+    try {
+        // Use session storage to cache the API response if possible
+        const cacheKey = `drive_folder_${folderId}`;
+        const cachedData = sessionStorage.getItem(cacheKey);
+        
+        let data;
+        if (cachedData) {
+            data = JSON.parse(cachedData);
+            updateLoadingProgress(30, 'Using cached photos data...');
+        } else {
             // Use Google Drive API to list files in the folder
-            const response = await fetch(`https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents&key=AIzaSyB5K5cNbyy3IpIvNsX84xEwKvJ1_3Suv_0&fields=files(id,name,mimeType,description)`);
+            const response = await fetch(`https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents&key=AIzaSyB5K5cNbyy3IpIvNsX84xEwKvJ1_3Suv_0&fields=files(id,name,mimeType,description)&pageSize=1000`);
             
             if (!response.ok) {
                 throw new Error('Failed to fetch folder contents');
             }
             
-            const data = await response.json();
+            data = await response.json();
             
-            // Filter for images and videos only
-            const mediaTypes = ['image/jpeg', 'image/png', 'image/gif', 'video/mp4', 'video/webm'];
-            const mediaFiles = data.files.filter(file => 
-                mediaTypes.some(type => file.mimeType.includes(type))
-            );
-            
-            // Format the response with proper URLs
-            return mediaFiles.map(file => ({
-                id: file.id,
-                name: file.name,
-                // Use direct link format for Google Drive images
-                url: `https://drive.google.com/uc?id=${file.id}`,
-                // High quality thumbnail with larger size parameter
-                thumbnail: `https://drive.google.com/thumbnail?id=${file.id}&sz=w500-h500`,
-                description: file.description || file.name,
-                isVideo: file.mimeType.includes('video'),
-                // Direct download URL
-                downloadUrl: `https://drive.google.com/uc?export=download&id=${file.id}`
-            }));
-        } catch (error) {
-            console.error('Error fetching files from Google Drive:', error);
-            throw error;
+            // Cache the response
+            sessionStorage.setItem(cacheKey, JSON.stringify(data));
+            updateLoadingProgress(30, 'Retrieved photos data...');
         }
-    }
-
-    // Helper function to trigger direct download
-    function downloadFile(url, filename) {
-        // Create a temporary link element
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = filename || 'download';
-        link.style.display = 'none';
         
-        // Add to document, click it, then remove
-        document.body.appendChild(link);
-        link.click();
+        // Filter for images and videos only
+        const mediaTypes = ['image/jpeg', 'image/png', 'image/gif', 'video/mp4', 'video/webm'];
+        const mediaFiles = data.files.filter(file => 
+            mediaTypes.some(type => file.mimeType.includes(type))
+        );
         
-        // Clean up
-        setTimeout(() => {
-            document.body.removeChild(link);
-        }, 100);
+        updateLoadingProgress(40, 'Processing media files...');
+        
+        // Format the response with proper URLs - use the most reliable format first
+        return mediaFiles.map(file => ({
+            id: file.id,
+            name: file.name.replace(/\.[^/.]+$/, ""), // Remove file extension
+            // Use more reliable URL format for direct viewing
+            url: `https://lh3.googleusercontent.com/d/${file.id}`,
+            // High quality thumbnail with larger size parameter
+            thumbnail: `https://drive.google.com/thumbnail?id=${file.id}&sz=w500-h500`,
+            description: file.description || file.name,
+            isVideo: file.mimeType.includes('video'),
+            // Direct download URL
+            downloadUrl: `https://drive.google.com/uc?export=download&id=${file.id}`
+        }));
+    } catch (error) {
+        console.error('Error fetching files from Google Drive:', error);
+        throw error;
     }
+}
 
-    // Function to check if image URL is valid
-    function checkImageExists(url) {
-        return new Promise((resolve) => {
-            const img = new Image();
-            img.onload = () => resolve(true);
-            img.onerror = () => resolve(false);
-            img.src = url;
+// Better download function using Blob
+function downloadFile(url, filename) {
+    // Show loading indicator
+    updateLoadingProgress(0, 'Starting download...');
+    
+    fetch(url)
+        .then(response => {
+            updateLoadingProgress(50, 'Downloading file...');
+            return response.blob();
+        })
+        .then(blob => {
+            updateLoadingProgress(90, 'Preparing file...');
+            
+            const blobUrl = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = filename || 'download';
+            link.style.display = 'none';
+            
+            // Add to document, click it, then remove
+            document.body.appendChild(link);
+            link.click();
+            
+            // Clean up
+            setTimeout(() => {
+                URL.revokeObjectURL(blobUrl);
+                document.body.removeChild(link);
+                updateLoadingProgress(100, 'Download complete!');
+                setTimeout(hideLoading, 1000);
+            }, 100);
+        })
+        .catch(error => {
+            console.error('Download failed:', error);
+            alert('Download failed. Please try again.');
+            hideLoading();
         });
-    }
+}
 
-    // Function to get fallback URL if needed
-    function getFallbackImageUrl(fileId) {
-        // Different URL formats to try
-        return [
-            `https://drive.google.com/uc?id=${fileId}`,
-            `https://drive.google.com/uc?export=view&id=${fileId}`,
-            `https://lh3.googleusercontent.com/d/${fileId}`
-        ];
-    }
+// Optimized parallel loading of images
+function preloadImage(url) {
+    return new Promise((resolve) => {
+        if (cachedImages[url]) {
+            resolve(url); // Already cached
+            return;
+        }
+        
+        const img = new Image();
+        img.onload = () => {
+            cachedImages[url] = true;
+            loadedImagesCount++;
+            
+            // Update loading progress
+            const percent = Math.min(40 + Math.floor((loadedImagesCount / photosList.length) * 60), 95);
+            updateLoadingProgress(percent, `Loading images (${loadedImagesCount}/${photosList.length})...`);
+            
+            resolve(url);
+        };
+        img.onerror = () => {
+            // If thumbnail fails, we'll try the next fallback later
+            resolve(null);
+        };
+        img.src = url;
+    });
+}
 
-    async function displayGallery(code) {
-        // Set current gallery
-        currentGallery = galleries[code];
-        
-        // Update gallery header
-        galleryTitle.textContent = currentGallery.name;
-        galleryDescription.textContent = currentGallery.description || 
-            `These photos were taken on ${currentGallery.date}. Thank you for choosing me to capture your special moments.`;
-        
+async function displayGallery(code) {
+    // Reset counter
+    loadedImagesCount = 0;
+    
+    // Set current gallery
+    currentGallery = galleries[code];
+    
+    // Update gallery header
+    galleryTitle.textContent = currentGallery.name;
+    galleryDescription.textContent = currentGallery.description || 
+        `These photos were taken on ${currentGallery.date}. Thank you for choosing me to capture your special moments.`;
+    
+    try {
         // Fetch photos from Google Drive folder
-        try {
-            photosList = await fetchGoogleDrivePhotos(currentGallery.folderId);
-            
-            // Clear any existing content
-            photoGrid.innerHTML = '';
-            
-            // Remove previous slides, keeping only the navigation buttons
-            const slides = document.querySelectorAll('.slideshow-slide');
-            slides.forEach(slide => slide.remove());
-            
-            // Create slideshow slides
-            for (let index = 0; index < photosList.length; index++) {
-                const media = photosList[index];
-                
-                if (media.isVideo) {
-                    // Create video element for videos
-                    const videoSlide = document.createElement('video');
-                    videoSlide.src = media.url;
-                    videoSlide.controls = true;
-                    videoSlide.classList.add('slideshow-slide');
-                    if (index === 0) {
-                        videoSlide.classList.add('active');
-                    }
-                    slideshowContainer.appendChild(videoSlide);
-                } else {
-                    // Create image element for images
-                    const slide = document.createElement('img');
-                    
-                    // Try to find a working URL for this image
-                    const urlsToTry = getFallbackImageUrl(media.id);
-                    for (const urlToTry of urlsToTry) {
-                        const exists = await checkImageExists(urlToTry);
-                        if (exists) {
-                            media.url = urlToTry; // Update the URL in our list
-                            break;
-                        }
-                    }
-                    
-                    slide.src = media.url;
-                    slide.alt = media.name;
-                    slide.classList.add('slideshow-slide');
-                    slide.setAttribute('loading', 'lazy'); // Add lazy loading for better performance
-                    if (index === 0) {
-                        slide.classList.add('active');
-                    }
-                    slideshowContainer.appendChild(slide);
+        photosList = await fetchGoogleDrivePhotos(currentGallery.folderId);
+        
+        if (photosList.length === 0) {
+            updateLoadingProgress(100, 'No photos found in this gallery');
+            return false;
+        }
+        
+        updateLoadingProgress(50, 'Preparing your gallery...');
+        
+        // Start preloading thumbnails in parallel
+        const preloadPromises = photosList.map(media => preloadImage(media.thumbnail));
+        
+        // Create slideshow slides first for faster initial display
+        const slides = document.querySelectorAll('.slideshow-slide');
+        slides.forEach(slide => slide.remove());
+        
+        // Take the first 5 images for the slideshow to show something quickly
+        const initialSlides = photosList.slice(0, 5);
+        
+        initialSlides.forEach((media, index) => {
+            if (media.isVideo) {
+                // Create video element for videos
+                const videoSlide = document.createElement('video');
+                videoSlide.src = media.url;
+                videoSlide.controls = true;
+                videoSlide.classList.add('slideshow-slide');
+                if (index === 0) {
+                    videoSlide.classList.add('active');
                 }
+                slideshowContainer.appendChild(videoSlide);
+            } else {
+                // Create image element for images
+                const slide = document.createElement('img');
+                slide.src = media.thumbnail; // Use thumbnail first for faster loading
+                slide.dataset.fullSrc = media.url; // Store full URL for later
+                slide.alt = media.name;
+                slide.classList.add('slideshow-slide');
+                slide.setAttribute('loading', 'lazy');
+                if (index === 0) {
+                    slide.classList.add('active');
+                }
+                slideshowContainer.appendChild(slide);
             }
+        });
+        
+        // Clear any existing content
+        photoGrid.innerHTML = '';
+        
+        // Wait for at least the thumbnails to load
+        await Promise.allSettled(preloadPromises);
+        
+        updateLoadingProgress(80, 'Creating gallery view...');
+        
+        // Use a fragment to improve performance
+        const fragment = document.createDocumentFragment();
+        
+        // Create gallery items with delay between batches
+        const batchSize = 10;
+        for (let i = 0; i < photosList.length; i += batchSize) {
+            const batch = photosList.slice(i, i + batchSize);
             
-            // Create gallery items
-            photosList.forEach((media, index) => {
+            batch.forEach((media, index) => {
                 const item = document.createElement('div');
                 item.classList.add('gallery-item');
-                item.style.animation = `slideIn 0.5s forwards ${0.1 + index * 0.1}s`;
+                item.style.setProperty('--item-index', i + index);
                 
                 // Create image element
                 const img = document.createElement('img');
@@ -864,13 +934,10 @@
                     videoIndicator.classList.add('video-indicator');
                     item.appendChild(videoIndicator);
                 } else {
-                    // Use high-quality thumbnail for images
+                    // Use thumbnail for gallery view
                     img.src = media.thumbnail;
                     img.alt = media.name;
-                    
-                    // Preload the full image for faster lightbox display
-                    const preloadImg = new Image();
-                    preloadImg.src = media.url;
+                    img.dataset.fullSrc = media.url;
                 }
                 
                 // Add the image to the item
@@ -884,15 +951,19 @@
                 `;
                 
                 const downloadBtn = document.createElement('a');
-                downloadBtn.href = media.downloadUrl;
+                downloadBtn.href = "#";
                 downloadBtn.classList.add('download-btn');
                 downloadBtn.innerHTML = '↓';
                 downloadBtn.title = `Download ${media.name}`;
+                downloadBtn.setAttribute('data-id', media.id);
+                downloadBtn.setAttribute('data-name', media.name);
                 
                 // Force download using a click handler
                 downloadBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     e.preventDefault();
+                    
+                    showLoading();
                     
                     // Use the helper function for direct download
                     downloadFile(media.downloadUrl, media.name);
@@ -901,170 +972,291 @@
                 item.appendChild(overlay);
                 item.appendChild(downloadBtn);
                 
+                // Store the index for lightbox navigation
+                item.setAttribute('data-index', i + index);
+                
                 item.addEventListener('click', () => {
                     if (media.isVideo) {
-                        // Open video in new tab for better playback
-                        window.open(media.url, '_blank');
+                        // Open video in lightbox
+                        openLightbox(media.url, true);
+                        currentLightboxIndex = parseInt(item.getAttribute('data-index'));
                     } else {
                         openLightbox(media.url);
+                        currentLightboxIndex = parseInt(item.getAttribute('data-index'));
                     }
                 });
                 
-                photoGrid.appendChild(item);
+                fragment.appendChild(item);
             });
             
-            // Update the download all button - create a zip option if possible
-            downloadAllBtn.textContent = "View All in Google Drive";
-            downloadAllBtn.setAttribute('href', `https://drive.google.com/drive/folders/${currentGallery.folderId}`);
-            downloadAllBtn.setAttribute('target', '_blank');
-            
-            return true;
-        } catch (error) {
-            console.error('Error fetching photos:', error);
-            return false;
-        }
-    }
-
-    function showGallery() {
-        loginContainer.style.display = 'none';
-        galleryContainer.style.display = 'block';
-    }
-
-    function showError() {
-        errorMessage.style.display = 'block';
-        setTimeout(() => {
-            errorMessage.style.display = 'none';
-        }, 3000);
-    }
-
-    function nextSlide() {
-        const slides = document.querySelectorAll('.slideshow-slide');
-        if (slides.length === 0) return;
-        
-        slides[currentSlide].classList.remove('active');
-        currentSlide = (currentSlide + 1) % slides.length;
-        slides[currentSlide].classList.add('active');
-        
-        // Pause all videos when changing slides
-        document.querySelectorAll('.slideshow-slide video').forEach(video => {
-            video.pause();
-        });
-    }
-
-    function prevSlide() {
-        const slides = document.querySelectorAll('.slideshow-slide');
-        if (slides.length === 0) return;
-        
-        slides[currentSlide].classList.remove('active');
-        currentSlide = (currentSlide - 1 + slides.length) % slides.length;
-        slides[currentSlide].classList.add('active');
-        
-        // Pause all videos when changing slides
-        document.querySelectorAll('.slideshow-slide video').forEach(video => {
-            video.pause();
-        });
-    }
-
-    function openLightbox(mediaUrl, isVideo = false) {
-        // Pre-load the image to make sure it works before showing the lightbox
-        if (!isVideo) {
-            const tempImg = new Image();
-            tempImg.onload = function() {
-                // If image loads successfully, show it in lightbox
-                lightboxImg.src = mediaUrl;
-                lightboxImg.style.display = 'block';
-                
-                // Remove any video elements if they exist
-                const videoElement = lightbox.querySelector('video');
-                if (videoElement) {
-                    lightbox.removeChild(videoElement);
-                }
-                
-                lightbox.classList.add('active');
-            };
-            
-            tempImg.onerror = function() {
-                // If image fails to load, try fallback URLs
-                const fileId = mediaUrl.split('id=')[1];
-                if (fileId) {
-                    // Try alternative URL formats
-                    const fallbacks = getFallbackImageUrl(fileId);
-                    tryFallbackUrls(fallbacks, 0);
-                } else {
-                    console.error('Failed to load image and could not determine file ID');
-                    alert('Sorry, this image could not be loaded. Please try downloading it instead.');
-                }
-            };
-            
-            // Start loading the image
-            tempImg.src = mediaUrl;
-        } else {
-            // Handle video
-            const videoElement = document.createElement('video');
-            videoElement.src = mediaUrl;
-            videoElement.controls = true;
-            videoElement.autoplay = true;
-            videoElement.classList.add('lightbox-content');
-            
-            // Remove existing content and add the video
-            const existingContent = lightbox.querySelector('.lightbox-content');
-            if (existingContent) {
-                lightbox.removeChild(existingContent);
+            // Add batch to the DOM
+            if (i + batchSize >= photosList.length) {
+                photoGrid.appendChild(fragment);
+            } else {
+                // This creates a small delay between batches to keep UI responsive
+                setTimeout(() => {
+                    photoGrid.appendChild(fragment);
+                }, 10);
             }
-            lightbox.insertBefore(videoElement, lightboxClose);
-            lightboxImg.style.display = 'none';
-            lightbox.classList.add('active');
         }
+        
+        // Finish displaying remaining slideshow items in the background
+        if (photosList.length > 5) {
+            setTimeout(() => {
+                const remainingSlides = photosList.slice(5);
+                remainingSlides.forEach((media, index) => {
+                    if (media.isVideo) {
+                        const videoSlide = document.createElement('video');
+                        videoSlide.src = media.url;
+                        videoSlide.controls = true;
+                        videoSlide.classList.add('slideshow-slide');
+                        slideshowContainer.appendChild(videoSlide);
+                    } else {
+                        const slide = document.createElement('img');
+                        slide.src = media.thumbnail;
+                        slide.dataset.fullSrc = media.url;
+                        slide.alt = media.name;
+                        slide.classList.add('slideshow-slide');
+                        slide.setAttribute('loading', 'lazy');
+                        slideshowContainer.appendChild(slide);
+                    }
+                });
+            }, 200);
+        }
+        
+        // Update the download all button
+        downloadAllBtn.textContent = "View All in Google Drive";
+        downloadAllBtn.setAttribute('href', `https://drive.google.com/drive/folders/${currentGallery.folderId}`);
+        downloadAllBtn.setAttribute('target', '_blank');
+        
+        updateLoadingProgress(100, 'Gallery loaded successfully!');
+        
+        return true;
+    } catch (error) {
+        console.error('Error fetching photos:', error);
+        updateLoadingProgress(100, 'Failed to load gallery. Please try again.');
+        return false;
     }
+}
+
+function showGallery() {
+    loginContainer.style.display = 'none';
+    galleryContainer.style.display = 'block';
     
-    // Helper function to try fallback URLs
-    function tryFallbackUrls(urls, index) {
-        if (index >= urls.length) {
-            alert('Sorry, this image could not be loaded. Please try downloading it instead.');
-            return;
+    // Start loading full-resolution images in the background
+    setTimeout(loadFullResImages, 1000);
+}
+
+// Load full resolution images in the background after initial display
+function loadFullResImages() {
+    const slides = document.querySelectorAll('.slideshow-slide[data-full-src]');
+    let loadedCount = 0;
+    
+    slides.forEach((slide, index) => {
+        const fullSrc = slide.dataset.fullSrc;
+        
+        // Stagger loading to prevent overwhelming the network
+        setTimeout(() => {
+            if (!cachedImages[fullSrc]) {
+                const img = new Image();
+                img.onload = () => {
+                    cachedImages[fullSrc] = true;
+                    loadedCount++;
+                    
+                    // Replace the src attribute if this slide is currently visible
+                    if (slide.classList.contains('active')) {
+                        slide.src = fullSrc;
+                    }
+                };
+                img.src = fullSrc;
+            }
+        }, index * 200); // Load a new image every 200ms
+    });
+}
+
+function showError() {
+    errorMessage.style.display = 'block';
+    setTimeout(() => {
+        errorMessage.style.display = 'none';
+    }, 3000);
+}
+
+function nextSlide() {
+    const slides = document.querySelectorAll('.slideshow-slide');
+    if (slides.length === 0) return;
+    
+    slides[currentSlide].classList.remove('active');
+    currentSlide = (currentSlide + 1) % slides.length;
+    slides[currentSlide].classList.add('active');
+    
+    // Pause all videos when changing slides
+    document.querySelectorAll('.slideshow-slide video').forEach(video => {
+        video.pause();
+    });
+    
+    // If we have the high-res version cached, use it
+    const currentSlideElement = slides[currentSlide];
+    if (currentSlideElement.dataset && currentSlideElement.dataset.fullSrc && cachedImages[currentSlideElement.dataset.fullSrc]) {
+        currentSlideElement.src = currentSlideElement.dataset.fullSrc;
+    }
+}
+
+function prevSlide() {
+    const slides = document.querySelectorAll('.slideshow-slide');
+    if (slides.length === 0) return;
+    
+    slides[currentSlide].classList.remove('active');
+    currentSlide = (currentSlide - 1 + slides.length) % slides.length;
+    slides[currentSlide].classList.add('active');
+    
+    // Pause all videos when changing slides
+    document.querySelectorAll('.slideshow-slide video').forEach(video => {
+        video.pause();
+    });
+    
+    // If we have the high-res version cached, use it
+    const currentSlideElement = slides[currentSlide];
+    if (currentSlideElement.dataset && currentSlideElement.dataset.fullSrc && cachedImages[currentSlideElement.dataset.fullSrc]) {
+        currentSlideElement.src = currentSlideElement.dataset.fullSrc;
+    }
+}
+
+function openLightbox(mediaUrl, isVideo = false) {
+    // Show loading indicator
+    lightbox.classList.add('active');
+    showLoading();
+    updateLoadingProgress(10, 'Loading full-size image...');
+    
+    if (!isVideo) {
+        // Create a new image element each time to avoid caching issues
+        const newImg = document.createElement('img');
+        newImg.classList.add('lightbox-content');
+        newImg.id = 'lightboxImg';
+        
+        // Remove existing image if present
+        const oldImg = document.getElementById('lightboxImg');
+        if (oldImg) {
+            oldImg.parentNode.removeChild(oldImg);
         }
         
-        const tempImg = new Image();
-        tempImg.onload = function() {
-            // If image loads successfully, show it in lightbox
-            lightboxImg.src = urls[index];
-            lightboxImg.style.display = 'block';
-            
-            // Remove any video elements if they exist
-            const videoElement = lightbox.querySelector('video');
-            if (videoElement) {
-                lightbox.removeChild(videoElement);
-            }
-            
-            lightbox.classList.add('active');
+        // Remove any video elements if they exist
+        const videoElement = lightbox.querySelector('video.lightbox-content');
+        if (videoElement) {
+            lightbox.removeChild(videoElement);
+        }
+        
+        // Insert new image before the close button
+        lightbox.insertBefore(newImg, lightboxClose);
+        
+        // Set up load and error handlers
+        newImg.onload = function() {
+            hideLoading();
         };
         
-        tempImg.onerror = function() {
-            // Try next fallback URL
-            tryFallbackUrls(urls, index + 1);
+        newImg.onerror = function() {
+            // Try fallback URL
+            newImg.src = `https://drive.google.com/uc?id=${mediaUrl.split('/').pop()}`;
+            newImg.onerror = function() {
+                hideLoading();
+                alert('Sorry, this image could not be loaded.');
+            };
         };
         
         // Start loading the image
-        tempImg.src = urls[index];
-    }
-
-    function closeLightbox() {
-        lightbox.classList.remove('active');
+        newImg.src = mediaUrl;
+    } else {
+        // Handle video
+        const videoElement = document.createElement('video');
+        videoElement.classList.add('lightbox-content');
+        videoElement.controls = true;
+        videoElement.autoplay = true;
         
-        // Stop video playback if there's a video
-        const videoElement = lightbox.querySelector('video');
-        if (videoElement) {
-            videoElement.pause();
+        // Remove existing content
+        const existingImg = document.getElementById('lightboxImg');
+        if (existingImg) {
+            existingImg.parentNode.removeChild(existingImg);
         }
-    }
-
-    // Event Listeners
-    document.addEventListener('DOMContentLoaded', () => {
-        // Simulate loading
-        hideLoading();
         
-        // Auto slideshow - only advance slides if not paused on a video
-        setInterval(() => {
+        const existingVideo = lightbox.querySelector('video.lightbox-content');
+        if (existingVideo) {
+            lightbox.removeChild(existingVideo);
+        }
+        
+        // Add loading handler
+        videoElement.onloadeddata = function() {
+            hideLoading();
+        };
+        
+        videoElement.onerror = function() {
+            hideLoading();
+            alert('Sorry, this video could not be loaded. Try opening it in a new tab.');
+        };
+        
+        // Insert video before the close button
+        lightbox.insertBefore(videoElement, lightboxClose);
+        
+        // Set source after adding to DOM
+        videoElement.src = mediaUrl;
+    }
+}
+
+function nextLightboxImage() {
+    if (photosList.length === 0) return;
+    
+    currentLightboxIndex = (currentLightboxIndex + 1) % photosList.length;
+    const media = photosList[currentLightboxIndex];
+    
+    if (media.isVideo) {
+        openLightbox(media.url, true);
+    } else {
+        openLightbox(media.url);
+    }
+}
+
+function prevLightboxImage() {
+    if (photosList.length === 0) return;
+    
+    currentLightboxIndex = (currentLightboxIndex - 1 + photosList.length) % photosList.length;
+    const media = photosList[currentLightboxIndex];
+    
+    if (media.isVideo) {
+        openLightbox(media.url, true);
+    } else {
+        openLightbox(media.url);
+    }
+}
+
+function closeLightbox() {
+    lightbox.classList.remove('active');
+    
+    // Stop video playback if there's a video
+    const videoElement = lightbox.querySelector('video');
+    if (videoElement) {
+        videoElement.pause();
+    }
+}
+
+// Load from URL hash if available
+function checkUrlHash() {
+    const hash = window.location.hash.substring(1);
+    if (hash && verifyAccessCode(hash)) {
+        accessCodeInput.value = hash;
+        loginForm.dispatchEvent(new Event('submit'));
+    }
+}
+
+// Event Listeners
+document.addEventListener('DOMContentLoaded', () => {
+    // Show initial loading progress
+    updateLoadingProgress(100, 'Ready!');
+    hideLoading();
+    
+    // Check for direct link access
+    checkUrlHash();
+    
+    // Auto slideshow - only advance slides if not paused on a video
+    setInterval(() => {
+        if (!lightbox.classList.contains('active')) { // Don't advance slides when lightbox is open
             const currentSlideElement = document.querySelector('.slideshow-slide.active');
             if (currentSlideElement && currentSlideElement.tagName === 'VIDEO') {
                 if (currentSlideElement.paused) {
@@ -1073,52 +1265,99 @@
             } else {
                 nextSlide();
             }
-        }, 5000);
-    });
+        }
+    }, 5000);
+});
 
-    loginForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const code = accessCodeInput.value.trim();
+loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const code = accessCodeInput.value.trim();
+    
+    if (verifyAccessCode(code)) {
+        showLoading();
         
-        if (verifyAccessCode(code)) {
-            showLoading();
-            // Load and display gallery
-            const success = await displayGallery(code);
-            
-            if (success) {
-                showGallery();
-            } else {
-                showError();
-            }
-            
-            hideLoading();
+        // Update URL hash for sharing/bookmarking
+        window.location.hash = code;
+        
+        // Load and display gallery
+        const success = await displayGallery(code);
+        
+        if (success) {
+            showGallery();
         } else {
             showError();
         }
-    });
+        
+        hideLoading();
+    } else {
+        showError();
+    }
+});
 
-    slideshowPrev.addEventListener('click', prevSlide);
-    slideshowNext.addEventListener('click', nextSlide);
-    
-    lightboxClose.addEventListener('click', closeLightbox);
-    lightbox.addEventListener('click', (e) => {
-        if (e.target === lightbox) {
+slideshowPrev.addEventListener('click', prevSlide);
+slideshowNext.addEventListener('click', nextSlide);
+
+lightboxClose.addEventListener('click', closeLightbox);
+lightboxPrev.addEventListener('click', prevLightboxImage);
+lightboxNext.addEventListener('click', nextLightboxImage);
+
+lightbox.addEventListener('click', (e) => {
+    if (e.target === lightbox) {
+        closeLightbox();
+    }
+});
+
+// Improved keyboard navigation
+document.addEventListener('keydown', (e) => {
+    if (lightbox.classList.contains('active')) {
+        if (e.key === 'Escape') {
             closeLightbox();
+        } else if (e.key === 'ArrowRight') {
+            nextLightboxImage();
+        } else if (e.key === 'ArrowLeft') {
+            prevLightboxImage();
         }
-    });
+    } else {
+        // When not in lightbox, keyboard still controls slideshow
+        if (e.key === 'ArrowRight') {
+            nextSlide();
+        } else if (e.key === 'ArrowLeft') {
+            prevSlide();
+        }
+    }
+});
 
-    // Add keyboard navigation support
-    document.addEventListener('keydown', (e) => {
+// Touch support for swiping
+let touchStartX = 0;
+let touchEndX = 0;
+
+function handleGesture() {
+    const threshold = 50; // Minimum distance for a swipe
+
+    if (touchEndX - touchStartX > threshold) {
+        // Swipe right - go to previous
         if (lightbox.classList.contains('active')) {
-            if (e.key === 'Escape') {
-                closeLightbox();
-            } else if (e.key === 'ArrowRight') {
-                nextSlide();
-            } else if (e.key === 'ArrowLeft') {
-                prevSlide();
-            }
+            prevLightboxImage();
+        } else {
+            prevSlide();
         }
-    });
-</script>
+    } else if (touchStartX - touchEndX > threshold) {
+        // Swipe left - go to next
+        if (lightbox.classList.contains('active')) {
+            nextLightboxImage();
+        } else {
+            nextSlide();
+        }
+    }
+}
+
+document.addEventListener('touchstart', e => {
+    touchStartX = e.changedTouches[0].screenX;
+});
+
+document.addEventListener('touchend', e => {
+    touchEndX = e.changedTouches[0].screenX;
+    handleGesture();
+});</script>
 </body>
 </html>
